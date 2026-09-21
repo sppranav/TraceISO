@@ -1,0 +1,950 @@
+{
+  "version": "3.0",
+  "elements": {
+    "B": {
+      "reference_materials": {
+        "NIST SRM 951": {
+          "record_id": "crm:b:nist-srm-951:certificate",
+          "material_id": "NIST SRM 951",
+          "display_label": "NIST SRM 951 - certificate value",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "NIST SRM 951, Certificate of Analysis",
+            "doi": null,
+            "url": null
+          },
+          "normalization": null,
+          "description": "",
+          "ratios": {
+            "11B/10B": {
+              "value": 4.04367,
+              "uncertainty": 0.00327,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "10B": 10.012936862,
+            "11B": 11.009305166
+          }
+        },
+        "NIST SRM 952": {
+          "record_id": "crm:b:nist-srm-952:certificate",
+          "material_id": "NIST SRM 952",
+          "display_label": "NIST SRM 952 - certificate value",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "NIST SRM 952, Certificate of Analysis",
+            "doi": null,
+            "url": null
+          },
+          "normalization": null,
+          "description": "",
+          "ratios": {
+            "10B/11B": {
+              "value": 18.8,
+              "uncertainty": 0.02,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "10B": 10.012936862,
+            "11B": 11.009305166
+          }
+        },
+        "NIST SRM 951a": {
+          "record_id": "crm:b:nist-srm-951a:certificate",
+          "material_id": "NIST SRM 951a",
+          "display_label": "NIST SRM 951a - certificate value",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "NIST SRM 951a, Certificate of Analysis",
+            "doi": null,
+            "url": null
+          },
+          "normalization": null,
+          "description": "",
+          "ratios": {
+            "10B/11B": {
+              "value": 0.2473,
+              "uncertainty": 0.0002,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "10B": 10.012936862,
+            "11B": 11.009305166
+          }
+        }
+      },
+      "default_reference_material": "NIST SRM 951",
+      "reference_data": {
+        "masses": {
+          "10B": 10.012936862,
+          "11B": 11.009305166
+        },
+        "natural_ratios": {}
+      }
+    },
+    "Cd": {
+      "reference_materials": {
+        "BAM-I012": {
+          "record_id": "crm:cd:bam-i012:certificate",
+          "material_id": "BAM-I012",
+          "display_label": "BAM-I012 - certificate value",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "BAM (2016), BAM-I012 Certificate",
+            "doi": null,
+            "url": null
+          },
+          "normalization": null,
+          "description": "",
+          "ratios": {
+            "114Cd/111Cd": {
+              "value": 2.2437,
+              "uncertainty": 0.0007,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "110Cd/111Cd": {
+              "value": 0.97504,
+              "uncertainty": 0.0001,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "112Cd/111Cd": {
+              "value": 1.8835,
+              "uncertainty": 0.0004,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "113Cd/111Cd": {
+              "value": 0.95479,
+              "uncertainty": 0.00016,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "116Cd/111Cd": {
+              "value": 0.58583,
+              "uncertainty": 0.00026,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "106Cd": 105.906459791,
+            "108Cd": 107.904183588,
+            "110Cd": 109.90300747,
+            "111Cd": 110.904183776,
+            "112Cd": 111.902763896,
+            "113Cd": 112.904408105,
+            "114Cd": 113.903364998,
+            "116Cd": 115.90476323
+          }
+        }
+      },
+      "reference_data": {
+        "masses": {
+          "106Cd": 105.906459791,
+          "108Cd": 107.904183588,
+          "110Cd": 109.90300747,
+          "111Cd": 110.904183776,
+          "112Cd": 111.902763896,
+          "113Cd": 112.904408105,
+          "114Cd": 113.903364998,
+          "116Cd": 115.90476323
+        },
+        "natural_ratios": {}
+      }
+    },
+    "Cr": {
+      "reference_materials": {
+        "NIST SRM 979": {
+          "record_id": "crm:cr:nist-srm-979:certificate",
+          "material_id": "NIST SRM 979",
+          "display_label": "NIST SRM 979 - certificate value",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "NIST SRM 979, Certificate of Analysis",
+            "doi": null,
+            "url": null
+          },
+          "normalization": null,
+          "description": "",
+          "ratios": {
+            "50Cr/52Cr": {
+              "value": 0.05186,
+              "uncertainty": 0.0001,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "53Cr/52Cr": {
+              "value": 0.11339,
+              "uncertainty": 0.00015,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "54Cr/52Cr": {
+              "value": 0.02822,
+              "uncertainty": 0.0005,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "50Cr": 49.946042209,
+            "52Cr": 51.940504714,
+            "53Cr": 52.940646304,
+            "54Cr": 53.938877359
+          }
+        }
+      },
+      "reference_data": {
+        "masses": {
+          "50Cr": 49.946042209,
+          "52Cr": 51.940504714,
+          "53Cr": 52.940646304,
+          "54Cr": 53.938877359
+        },
+        "natural_ratios": {}
+      }
+    },
+    "Cu": {
+      "reference_materials": {
+        "HICU-1": {
+          "record_id": "crm:cu:hicu-1:certificate",
+          "material_id": "HICU-1",
+          "display_label": "HICU-1 - certified value",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "HICU-1 certified value",
+            "doi": null,
+            "url": null
+          },
+          "normalization": null,
+          "description": "",
+          "ratios": {
+            "65Cu/63Cu": {
+              "value": 0.44617,
+              "uncertainty": 0.00018,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "63Cu": 62.929597119,
+            "65Cu": 64.927789476
+          }
+        }
+      },
+      "reference_data": {
+        "masses": {
+          "63Cu": 62.929597119,
+          "65Cu": 64.927789476
+        },
+        "natural_ratios": {}
+      }
+    },
+    "Hf": {
+      "reference_materials": {},
+      "reference_data": {
+        "masses": {
+          "174Hf": 173.940048377,
+          "176Hf": 175.941409797,
+          "177Hf": 176.943230187,
+          "178Hf": 177.9436988,
+          "179Hf": 178.945825705,
+          "180Hf": 179.946559537
+        },
+        "natural_ratios": {}
+      }
+    },
+    "Hg": {
+      "reference_materials": {},
+      "reference_data": {
+        "masses": {
+          "202Hg": 201.970643,
+          "204Hg": 203.973494
+        },
+        "natural_ratios": {
+          "204Hg/202Hg": {
+            "record_id": "nat:hg:204hg-202hg",
+            "display_label": "204Hg/202Hg assigned correction ratio",
+            "value_kind": "assigned_correction",
+            "value": 0.2293,
+            "uncertainty": null,
+            "k": null,
+            "uncertainty_semantics": "unassigned",
+            "source": {
+              "citation": "CIAAW representative isotopic abundances",
+              "doi": null,
+              "url": "https://www.ciaaw.org/isotopic-abundances.htm"
+            },
+            "note": "Editable assigned correction ratio used by the Pb-Tl 204Hg interference correction. No defensible uncertainty model is defined for V1, so the uncertainty is unassigned (null) and is omitted from propagation. Numeric zero is not used, because u = 0 would assert that the quantity is exact."
+          }
+        }
+      }
+    },
+    "Kr": {
+      "reference_materials": {},
+      "reference_data": {
+        "masses": {
+          "78Kr": 77.920366341,
+          "80Kr": 79.91637794,
+          "82Kr": 81.91348115368,
+          "83Kr": 82.914126516,
+          "84Kr": 83.91149772708,
+          "86Kr": 85.91061062468
+        },
+        "natural_ratios": {
+          "84Kr/83Kr": {
+            "record_id": "nat:kr:84kr-83kr",
+            "display_label": "84Kr/83Kr representative isotopic abundance ratio",
+            "value_kind": "representative_abundance",
+            "value": 4.955391,
+            "uncertainty": 0.00827564826,
+            "k": 1.0,
+            "uncertainty_semantics": "standard_uncertainty",
+            "source": {
+              "citation": "Meija et al. (2016), IUPAC isotopic compositions of the elements",
+              "doi": null,
+              "url": null
+            }
+          },
+          "86Kr/83Kr": {
+            "record_id": "nat:kr:86kr-83kr",
+            "display_label": "86Kr/83Kr representative isotopic abundance ratio",
+            "value_kind": "representative_abundance",
+            "value": 1.50252,
+            "uncertainty": 0.00434304287,
+            "k": 1.0,
+            "uncertainty_semantics": "standard_uncertainty",
+            "source": {
+              "citation": "Meija et al. (2016), IUPAC isotopic compositions of the elements",
+              "doi": null,
+              "url": null
+            }
+          }
+        }
+      }
+    },
+    "Li": {
+      "reference_materials": {
+        "NIST RM 8545 (LSVEC)": {
+          "record_id": "crm:li:nist-rm-8545-lsvec:certificate",
+          "material_id": "NIST RM 8545 (LSVEC)",
+          "display_label": "NIST RM 8545 (LSVEC) - non-certified reference value",
+          "value_kind": "unspecified",
+          "source": {
+            "citation": "NIST RM 8545 (LSVEC), Reference Material Information Sheet, 24 January 2023, page 2, Table 2",
+            "doi": null,
+            "url": "https://tsapps.nist.gov/srmext/certificates/8545.pdf"
+          },
+          "normalization": null,
+          "description": "NIST explicitly designates the absolute isotope ratio as non-certified. The information sheet states expanded uncertainty k=2. The reverse ratio and uncertainty are rounded inverse/first-order transformations; this is distinct from the defined zero-uncertainty lithium delta-scale anchor.",
+          "ratios": {
+            "6Li/7Li": {
+              "value": 0.08215,
+              "uncertainty": 0.00023,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "7Li/6Li": {
+              "value": 12.17285453,
+              "uncertainty": 0.034081,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "6Li": 6.01512288742,
+            "7Li": 7.01600343426
+          }
+        },
+        "IRMM-016": {
+          "record_id": "crm:li:irmm-016:certificate",
+          "material_id": "IRMM-016",
+          "display_label": "IRMM-016 - certificate value",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "IRMM-016 Certificate",
+            "doi": null,
+            "url": null
+          },
+          "normalization": null,
+          "description": "",
+          "ratios": {
+            "7Li/6Li": {
+              "value": 12.177153,
+              "uncertainty": 0.012901,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "6Li/7Li": {
+              "value": 0.082121,
+              "uncertainty": 8.7e-05,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "6Li": 6.01512288742,
+            "7Li": 7.01600343426
+          }
+        }
+      },
+      "default_reference_material": "NIST RM 8545 (LSVEC)",
+      "reference_data": {
+        "masses": {
+          "6Li": 6.01512288742,
+          "7Li": 7.01600343426
+        },
+        "natural_ratios": {}
+      }
+    },
+    "Mg": {
+      "reference_materials": {
+        "ERM-AE143": {
+          "record_id": "crm:mg:erm-ae143:certificate",
+          "material_id": "ERM-AE143",
+          "display_label": "ERM-AE143 - certificate value",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "Vogl et al., BAM Certification Report ERM-AE143/144/145, November 2017, pages 4 and 16",
+            "doi": null,
+            "url": "https://rrr.bam.de/RRR/Content/EN/Downloads/RM-Certificates/RM-cert-isotopic-materials/erm_ae143_ae144_ae145repe.pdf?__blob=publicationFile"
+          },
+          "normalization": null,
+          "description": "",
+          "ratios": {
+            "25Mg/24Mg": {
+              "value": 0.12659,
+              "uncertainty": 2e-05,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "26Mg/24Mg": {
+              "value": 0.139362,
+              "uncertainty": 4.3e-05,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "24Mg": 23.985041689,
+            "25Mg": 24.985836966,
+            "26Mg": 25.982592972
+          }
+        }
+      },
+      "reference_data": {
+        "masses": {
+          "24Mg": 23.985041689,
+          "25Mg": 24.985836966,
+          "26Mg": 25.982592972
+        },
+        "natural_ratios": {}
+      }
+    },
+    "Nd": {
+      "reference_materials": {},
+      "reference_data": {
+        "masses": {
+          "142Nd": 141.907728824,
+          "143Nd": 142.909819815,
+          "144Nd": 143.910092798,
+          "145Nd": 144.912579151,
+          "146Nd": 145.913122459,
+          "148Nd": 147.916899027,
+          "150Nd": 149.920901322
+        },
+        "natural_ratios": {}
+      }
+    },
+    "Ni": {
+      "reference_materials": {
+        "NIST SRM 986": {
+          "record_id": "crm:ni:nist-srm-986:certificate",
+          "material_id": "NIST SRM 986",
+          "display_label": "NIST SRM 986 - certificate value",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "NIST SRM 986, Certificate of Analysis",
+            "doi": null,
+            "url": null
+          },
+          "normalization": null,
+          "description": "",
+          "ratios": {
+            "58Ni/60Ni": {
+              "value": 2.596061,
+              "uncertainty": 0.000728,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "61Ni/60Ni": {
+              "value": 0.043469,
+              "uncertainty": 1.5e-05,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "62Ni/60Ni": {
+              "value": 0.1386,
+              "uncertainty": 4.5e-05,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "64Ni/60Ni": {
+              "value": 0.035295,
+              "uncertainty": 2.4e-05,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "58Ni": 57.93534165,
+            "60Ni": 59.930785129,
+            "61Ni": 60.931054819,
+            "62Ni": 61.928344753,
+            "64Ni": 63.927966228
+          }
+        },
+        "HINI-1": {
+          "record_id": "crm:ni:hini-1:certificate",
+          "material_id": "HINI-1",
+          "display_label": "HINI-1 - certified value",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "HINI-1 certified value",
+            "doi": null,
+            "url": null
+          },
+          "normalization": null,
+          "description": "",
+          "ratios": {
+            "58Ni/60Ni": {
+              "value": 2.5754,
+              "uncertainty": 0.00375,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "61Ni/60Ni": {
+              "value": 0.04359,
+              "uncertainty": 6e-05,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "62Ni/60Ni": {
+              "value": 0.13916,
+              "uncertainty": 0.00016,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "64Ni/60Ni": {
+              "value": 0.03519,
+              "uncertainty": 0.00032,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "58Ni": 57.93534165,
+            "60Ni": 59.930785129,
+            "61Ni": 60.931054819,
+            "62Ni": 61.928344753,
+            "64Ni": 63.927966228
+          }
+        }
+      },
+      "default_reference_material": "NIST SRM 986",
+      "reference_data": {
+        "masses": {
+          "58Ni": 57.93534165,
+          "60Ni": 59.930785129,
+          "61Ni": 60.931054819,
+          "62Ni": 61.928344753,
+          "64Ni": 63.927966228
+        },
+        "natural_ratios": {}
+      }
+    },
+    "Pb": {
+      "reference_materials": {
+        "NIST SRM 981": {
+          "record_id": "crm:pb:nist-srm-981:certificate",
+          "material_id": "NIST SRM 981",
+          "display_label": "NIST SRM 981 - certificate value",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "NIST (1991), SRM 981 Certificate of Analysis",
+            "doi": null,
+            "url": "https://tsapps.nist.gov/srmext/certificates/archives/981.pdf"
+          },
+          "normalization": null,
+          "description": "Owner-directed interpretation (2026-09-14): treat the certificate overall error limits as expanded uncertainties with k=2 and use u=U/2. The certificate does not explicitly state k=2; this is an adopted processing assumption, not a NIST-certified coverage-factor assignment.",
+          "ratios": {
+            "208Pb/206Pb": {
+              "value": 2.1681,
+              "uncertainty": 0.0008,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "207Pb/206Pb": {
+              "value": 0.91464,
+              "uncertainty": 0.00033,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "204Pb/206Pb": {
+              "value": 0.059042,
+              "uncertainty": 3.7e-05,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "204Pb": 203.973043506,
+            "206Pb": 205.97446521,
+            "207Pb": 206.975896821,
+            "208Pb": 207.976652005
+          }
+        },
+        "ERM-AE142": {
+          "record_id": "crm:pb:erm-ae142:certificate",
+          "material_id": "ERM-AE142",
+          "display_label": "ERM-AE142 - certificate value",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "ERM (2015), ERM-AE142 Certificate",
+            "doi": null,
+            "url": null
+          },
+          "normalization": null,
+          "description": "",
+          "ratios": {
+            "208Pb/206Pb": {
+              "value": 1.8874,
+              "uncertainty": 0.001,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "204Pb": 203.973043506,
+            "206Pb": 205.97446521,
+            "207Pb": 206.975896821,
+            "208Pb": 207.976652005
+          }
+        }
+      },
+      "default_reference_material": "NIST SRM 981",
+      "reference_data": {
+        "masses": {
+          "204Pb": 203.973043506,
+          "206Pb": 205.97446521,
+          "207Pb": 206.975896821,
+          "208Pb": 207.976652005
+        },
+        "natural_ratios": {}
+      }
+    },
+    "Rb": {
+      "reference_materials": {},
+      "reference_data": {
+        "masses": {
+          "85Rb": 84.911789738,
+          "87Rb": 86.909180531
+        },
+        "natural_ratios": {
+          "87Rb/85Rb": {
+            "record_id": "nat:rb:87rb-85rb",
+            "display_label": "87Rb/85Rb representative isotopic abundance ratio",
+            "value_kind": "representative_abundance",
+            "value": 0.385617,
+            "uncertainty": null,
+            "k": null,
+            "uncertainty_semantics": "unassigned",
+            "source": {
+              "citation": "CIAAW representative isotopic abundances x(85Rb) = 0.7217(2), x(87Rb) = 0.2783(2)",
+              "doi": null,
+              "url": "https://www.ciaaw.org/isotopic-abundances.htm"
+            },
+            "note": "The nominal ratio is derived from the CIAAW representative abundances with the sum constraint x(85Rb) + x(87Rb) = 1. Its uncertainty is unassigned for this release and is omitted from propagation."
+          }
+        }
+      }
+    },
+    "Sr": {
+      "reference_materials": {
+        "NIST SRM 987": {
+          "record_id": "crm:sr:nist-srm-987:certificate",
+          "material_id": "NIST SRM 987",
+          "display_label": "NIST SRM 987 - certificate value (absolute)",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "NIST (2015), SRM 987 Certificate of Analysis",
+            "doi": null,
+            "url": null
+          },
+          "normalization": null,
+          "description": "",
+          "ratios": {
+            "87Sr/86Sr": {
+              "value": 0.71034,
+              "uncertainty": 0.00026,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "88Sr/86Sr": {
+              "value": 8.37861,
+              "uncertainty": 0.00325,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            },
+            "84Sr/86Sr": {
+              "value": 0.05655,
+              "uncertainty": 0.00014,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "84Sr": 83.913419118,
+            "86Sr": 85.90926072473,
+            "87Sr": 86.908877495,
+            "88Sr": 87.905612253
+          }
+        },
+        "GeoReM NIST SRM 987": {
+          "record_id": "crm:sr:georem-nist-srm-987:consensus",
+          "material_id": "NIST SRM 987",
+          "display_label": "NIST SRM 987 - GeoReM consensus value (internally normalised, 86Sr/88Sr = 0.1194)",
+          "value_kind": "consensus",
+          "source": {
+            "citation": "GeoReM (Jochum et al. 2005); Faure & Mensing (2013)",
+            "doi": null,
+            "url": null
+          },
+          "normalization": {
+            "convention": "internal_normalization_exponential_law",
+            "ratio_name": "86Sr/88Sr",
+            "value": 0.1194
+          },
+          "description": "Internally-normalized consensus value (exponential law, 86Sr/88Sr = 0.1194).",
+          "ratios": {
+            "87Sr/86Sr": {
+              "value": 0.71025,
+              "uncertainty": 4.2e-07,
+              "k": 1.0,
+              "uncertainty_semantics": "standard_uncertainty"
+            }
+          },
+          "masses": {}
+        }
+      },
+      "default_reference_material": "NIST SRM 987",
+      "reference_data": {
+        "masses": {
+          "84Sr": 83.913419118,
+          "86Sr": 85.90926072473,
+          "87Sr": 86.908877495,
+          "88Sr": 87.905612253
+        },
+        "natural_ratios": {
+          "84Sr/86Sr": {
+            "record_id": "nat:sr:84sr-86sr",
+            "display_label": "84Sr/86Sr assumed reference ratio",
+            "value_kind": "normalization_convention",
+            "value": 0.05655,
+            "uncertainty": 0.0,
+            "k": 1.0,
+            "uncertainty_semantics": "assigned_exact",
+            "source": {
+              "citation": "NIST SRM 987",
+              "doi": null,
+              "url": null
+            },
+            "note": "Stored with u = 0, i.e. treated as exact where it is used. The SRM 987 certificate uncertainty for this ratio is not propagated through this path in V1."
+          },
+          "88Sr/86Sr": {
+            "record_id": "nat:sr:88sr-86sr",
+            "display_label": "88Sr/86Sr assumed reference ratio",
+            "value_kind": "normalization_convention",
+            "value": 8.37861,
+            "uncertainty": 0.0,
+            "k": 1.0,
+            "uncertainty_semantics": "assigned_exact",
+            "source": {
+              "citation": "NIST SRM 987",
+              "doi": null,
+              "url": null
+            },
+            "note": "Stored with u = 0, i.e. treated as exact where it is used. The SRM 987 certificate uncertainty for this ratio is not propagated through this path in V1."
+          }
+        }
+      },
+      "internal_normalization": {
+        "ratio_name": "86Sr/88Sr",
+        "value": 0.1194,
+        "convention": "internal_normalization_exponential_law"
+      }
+    },
+    "Tl": {
+      "reference_materials": {
+        "NIST SRM 997": {
+          "record_id": "crm:tl:nist-srm-997:certificate",
+          "material_id": "NIST SRM 997",
+          "display_label": "NIST SRM 997 - certificate value (canonical 205Tl/203Tl)",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "NIST (2004), Certificate of Analysis, SRM 997 Isotopic Standard for Thallium",
+            "doi": null,
+            "url": "https://tsapps.nist.gov/srmext/certificates/archives/997.pdf"
+          },
+          "normalization": null,
+          "description": "",
+          "ratios": {
+            "205Tl/203Tl": {
+              "value": 2.38714,
+              "uncertainty": 0.00101,
+              "k": null,
+              "uncertainty_semantics": "source_stated_limit",
+              "note": "The certificate states 2.38714 +/- 0.00101 as an overall limit of error. No coverage factor is assigned, and the limit is not converted to a standard uncertainty automatically."
+            }
+          },
+          "masses": {
+            "203Tl": 202.972344098,
+            "205Tl": 204.974427318
+          }
+        },
+        "ERM-AE649": {
+          "record_id": "crm:tl:erm-ae649:certificate",
+          "material_id": "ERM-AE649",
+          "display_label": "ERM-AE649 - certificate value",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "ERM-AE649 Certificate (IRMM-649, revised 2013)",
+            "doi": null,
+            "url": null
+          },
+          "normalization": null,
+          "description": "Tl in 1 M nitric acid",
+          "ratios": {
+            "203Tl/205Tl": {
+              "value": 0.41891,
+              "uncertainty": 0.00018,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "203Tl": 202.972344098,
+            "205Tl": 204.974427318
+          }
+        }
+      },
+      "default_reference_material": "NIST SRM 997",
+      "reference_data": {
+        "masses": {
+          "203Tl": 202.972344098,
+          "205Tl": 204.974427318
+        },
+        "natural_ratios": {
+          "205Tl/203Tl": {
+            "record_id": "nat:tl:205tl-203tl",
+            "display_label": "205Tl/203Tl canonical Pb-Tl normalization ratio",
+            "value_kind": "certificate",
+            "value": 2.38714,
+            "uncertainty": 0.00101,
+            "k": null,
+            "uncertainty_semantics": "source_stated_limit",
+            "source": {
+              "citation": "NIST (2004), Certificate of Analysis, SRM 997 Isotopic Standard for Thallium",
+              "doi": null,
+              "url": "https://tsapps.nist.gov/srmext/certificates/archives/997.pdf"
+            },
+            "note": "Canonical stored orientation. 203Tl/205Tl is never stored; it is derived programmatically. The stated 0.00101 overall limit of error has no assigned coverage factor and is not converted to a standard uncertainty automatically."
+          }
+        }
+      },
+      "internal_normalization": {
+        "ratio_name": "205Tl/203Tl",
+        "value": 2.38714,
+        "convention": "external_normalization_pb_tl"
+      }
+    },
+    "U": {
+      "reference_materials": {
+        "NBL CRM C145": {
+          "record_id": "crm:u:nbl-crm-c145:certificate",
+          "material_id": "NBL CRM C145",
+          "display_label": "NBL CRM C145 - certificate value",
+          "value_kind": "certificate",
+          "source": {
+            "citation": "NBL CRM C145 Certificate",
+            "doi": null,
+            "url": null
+          },
+          "normalization": null,
+          "description": "",
+          "ratios": {
+            "235U/238U": {
+              "value": 0.0042856,
+              "uncertainty": 4.9e-06,
+              "k": 2.0,
+              "uncertainty_semantics": "expanded_uncertainty"
+            }
+          },
+          "masses": {
+            "235U": 235.043928117,
+            "238U": 238.050786936
+          }
+        }
+      },
+      "reference_data": {
+        "masses": {
+          "235U": 235.043928117,
+          "238U": 238.050786936
+        },
+        "natural_ratios": {}
+      }
+    },
+    "Zr": {
+      "reference_materials": {},
+      "reference_data": {
+        "masses": {
+          "90Zr": 89.9047044,
+          "91Zr": 90.9056458,
+          "92Zr": 91.9050408,
+          "94Zr": 93.9063152,
+          "96Zr": 95.9082734
+        },
+        "natural_ratios": {
+          "91Zr/90Zr": {
+            "record_id": "nat:zr:91zr-90zr",
+            "display_label": "91Zr/90Zr assumed reference ratio",
+            "value_kind": "unspecified",
+            "value": 0.21814,
+            "uncertainty": 0.00046,
+            "k": 2.0,
+            "uncertainty_semantics": "expanded_uncertainty",
+            "source": {
+              "citation": "IUPAC standard value",
+              "doi": null,
+              "url": null
+            },
+            "note": "The stored source string does not identify a specific IUPAC record, so the value kind is left unspecified rather than asserted."
+          }
+        }
+      },
+      "internal_normalization": {
+        "ratio_name": "91Zr/90Zr",
+        "value": 0.21814,
+        "convention": "internal_normalization_exponential_law"
+      }
+    }
+  }
+}

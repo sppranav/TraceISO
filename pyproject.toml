@@ -1,0 +1,90 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "TraceISO"
+version = "1.0.0"
+description = "Multi-Collector ICP-MS Isotope Data Processing Toolkit"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Pranav Seena Prem" }]
+keywords = [
+    "isotope-ratio",
+    "MC-ICP-MS",
+    "metrology",
+    "GUM",
+    "uncertainty",
+    "geochemistry",
+    "mass-spectrometry",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+]
+dependencies = [
+    "numpy>=1.20.0",
+    "pandas>=1.3.0",
+    "scipy>=1.7.0",
+    "h5py>=3.6.0",
+    "jinja2>=3.1.2",
+    "plotly>=5.5.0",
+    "streamlit>=1.52.1",
+    "openpyxl>=3.1.0",
+    "kaleido>=0.2.1",
+    "watchdog>=2.1.0",
+    "packaging>=21.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.27.0",
+    "hypothesis>=6.0.0",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+tools = [
+    "PyQt5>=5.15.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/sppranav/TraceISO"
+Repository = "https://github.com/sppranav/TraceISO.git"
+Issues = "https://github.com/sppranav/TraceISO/issues"
+
+[tool.pytest.ini_options]
+# Property-based tests live in tests_hypothesis/ and are run explicitly.
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "property: property-based tests run with Hypothesis",
+]
+
+[tool.setuptools.packages.find]
+include = ["config*", "domain*", "file_io*", "ui*", "tools*"]
+
+[tool.setuptools.package-data]
+# The reference library and tool resources are data, not code. Without this the
+# built wheel contains only .py files, so an installed TraceISO has no certified
+# values, no natural ratios and no isotope masses.
+config = ["*.json"]
+tools = [
+    "crm_manager/resources/*.qss",
+    "neptune_data_extractor/templates/*.json",
+]
+
+[tool.setuptools.data-files]
+"share/doc/traceiso" = [
+    "requirements-lock.txt",
+]

@@ -1,0 +1,25 @@
+{
+    "header_row_idx": 22,
+    "footer_row_idx": null,
+    "time_col": null,
+    "cycle_col": "Cycle",
+    "isotope_cols": {
+        "24Mg": "24Mg",
+        "25.030": "25Mg",
+        "26Mg": "26Mg"
+    },
+    "ratio_cols": {},
+    "metadata_cells": {
+        "1,0": "Sample Name",
+        "10,0": "Time",
+        "14,0": "Sample Type",
+        "15,0": "Blank 1",
+        "16,0": "Blank 2",
+        "6,0": "Run Number",
+        "2,0": "Date"
+    },
+    "isotope_system": "Mg",
+    "instrument": "",
+    "name_pattern": ".*?(\\d{2,}_.+)$",
+    "footer_marker": "***"
+}

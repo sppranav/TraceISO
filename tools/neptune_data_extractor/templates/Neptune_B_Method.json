@@ -1,0 +1,20 @@
+{
+    "header_row_idx": 22,
+    "footer_row_idx": null,
+    "footer_marker": "***",
+    "time_col": null,
+    "cycle_col": null,
+    "isotope_cols": {
+        "10B": "10B",
+        "11B": "11B"
+    },
+    "ratio_cols": {},
+    "metadata_cells": {
+        "1,0": "Sample Name",
+        "6,0": "Run Number",
+        "10,0": "Time",
+        "9,0": "Date",
+        "14,0": "Sample Type"
+    },
+    "isotope_system": "B"
+}

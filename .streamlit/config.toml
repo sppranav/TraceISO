@@ -1,0 +1,30 @@
+[global]
+# Suppress component manifest scan errors (Streamlit known issue)
+# when a third-party package registers a component with a None name.
+suppressDeprecationWarnings = true
+# Silence the "widget created with a default value but also had its value set
+# via the Session State API" warning. This is a systematic false positive here:
+# app_shell._keep_sticky_widgets_alive() intentionally reasserts every sticky
+# widget key (results_/overview_/qc_thr_/drift_/uncertainty_) as user-set on
+# each rerun so lazily-rendered sections keep their state, while those same
+# widgets still pass default=/value=/index= for their first render.
+disableWidgetStateDuplicationWarning = true
+
+[server]
+headless = true
+port = 8501
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+# Pin light mode so the app never follows OS dark-mode preference.
+# Dense data-terminal direction; full treatment is in ui/theme.py.
+base = "light"
+primaryColor = "#1D4ED8"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#EEF0F3"
+# Crisp ink; captions/help/placeholders are darkened via CSS in ui/theme.py.
+textColor = "#0B0F17"
+# Body text stays sans; monospace is applied selectively to numerics/tables.
+font = "sans serif"

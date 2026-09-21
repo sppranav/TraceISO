@@ -1,0 +1,52 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Build and packaging artifacts
+build/
+dist/
+dist_check/
+*.egg-info/
+.eggs/
+
+# Test and analysis caches
+.pytest_cache/
+.hypothesis/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Environments
+.venv/
+venv/
+env/
+
+# Editor and OS noise
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+Desktop.ini
+
+# Streamlit local secrets (never commit credentials)
+.streamlit/secrets.toml
+
+# Local development context
+
+project_support/
+output
+
+# Files excluded from the public release
+tests/
+tests_hypothesis/
+.github/
+TECHNICAL_DOCUMENTATION.md
+CITATION.cff
+
+# Local working material moved out of the release tree
+/misc/
+
+/~$*.docx

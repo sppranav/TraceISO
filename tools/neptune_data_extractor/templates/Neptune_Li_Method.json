@@ -1,0 +1,24 @@
+{
+    "header_row_idx": 22,
+    "footer_row_idx": null,
+    "time_col": null,
+    "cycle_col": "Cycle",
+    "isotope_cols": {
+        "6Li": "6Li",
+        "7Li": "7Li"
+    },
+    "ratio_cols": {},
+    "metadata_cells": {
+        "1,0": "Sample Name",
+        "10,0": "Time",
+        "14,0": "Sample Type",
+        "15,0": "Blank 1",
+        "16,0": "Blank 2",
+        "6,0": "Run Number",
+        "2,0": "Date"
+    },
+    "isotope_system": "Li",
+    "instrument": "",
+    "name_pattern": ".*?(\\d{2,}_.+)$",
+    "footer_marker": "***"
+}

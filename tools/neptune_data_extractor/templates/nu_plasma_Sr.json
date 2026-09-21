@@ -1,0 +1,13 @@
+{
+    "instrument": "Nu Plasma",
+    "isotope_system": "Sr",
+    "header_row_idx": 0,
+    "footer_row_idx": null,
+    "footer_marker": "",
+    "time_col": "Time",
+    "cycle_col": "Cycle",
+    "isotope_cols": {},
+    "ratio_cols": {},
+    "metadata_cells": {},
+    "name_pattern": ".*"
+}

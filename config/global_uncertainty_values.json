@@ -1,0 +1,270 @@
+{
+  "elements": {
+    "B": {
+      "custom_contributors": [],
+      "ssb_kappa_defaults": {
+        "k1_sample_decomposition": {
+          "distribution": "normal",
+          "enabled": true,
+          "source": "published uncertainty budget",
+          "u_rel_permil": 0.0
+        },
+        "k2_matrix_separation": {
+          "distribution": "normal",
+          "enabled": true,
+          "source": "published uncertainty budget",
+          "u_rel_permil": 0.23
+        },
+        "k3_procedural_blank": {
+          "distribution": "normal",
+          "enabled": true,
+          "source": "published uncertainty budget",
+          "u_rel_permil": 0.07
+        },
+        "k4_bracketing_standard_heterogeneity": {
+          "distribution": "normal",
+          "enabled": true,
+          "source": "published uncertainty budget",
+          "u_rel_permil": 0.1
+        },
+        "k5_instrumental_drift": {
+          "calculation": "standard_sequence",
+          "distribution": "normal",
+          "enabled": true
+        },
+        "k6_matrix_effects": {
+          "distribution": "normal",
+          "enabled": true,
+          "source": "published uncertainty budget",
+          "u_rel_permil": 0.0
+        },
+        "k7_residual_interferences": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        }
+      }
+    },
+    "Cd": {
+      "custom_contributors": [],
+      "ssb_kappa_defaults": {
+        "k1_sample_decomposition": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k2_matrix_separation": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k3_procedural_blank": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k4_bracketing_standard_heterogeneity": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k5_instrumental_drift": {
+          "calculation": "standard_sequence",
+          "distribution": "normal",
+          "enabled": false
+        },
+        "k6_matrix_effects": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k7_residual_interferences": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        }
+      }
+    },
+    "Li": {
+      "custom_contributors": [
+        {
+          "degrees_of_freedom": "inf",
+          "description": "",
+          "display_name": "New contributor",
+          "distribution": "normal",
+          "enabled": true,
+          "name": "u_custom_new",
+          "source": "",
+          "type_ab": "B",
+          "u_rel_permil": 0.0
+        }
+      ],
+      "ssb_kappa_defaults": {
+        "k1_sample_decomposition": {
+          "distribution": "normal",
+          "enabled": true,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k2_matrix_separation": {
+          "distribution": "normal",
+          "enabled": true,
+          "source": "n/a",
+          "u_rel_permil": 0.255
+        },
+        "k3_procedural_blank": {
+          "distribution": "normal",
+          "enabled": true,
+          "source": "n/a",
+          "u_rel_permil": 0.05
+        },
+        "k4_bracketing_standard_heterogeneity": {
+          "distribution": "normal",
+          "enabled": true,
+          "source": "n/a",
+          "u_rel_permil": 0.1
+        },
+        "k5_instrumental_drift": {
+          "calculation": "standard_sequence",
+          "distribution": "normal",
+          "enabled": true
+        },
+        "k6_matrix_effects": {
+          "distribution": "normal",
+          "enabled": true,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k7_residual_interferences": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        }
+      }
+    },
+    "Mg": {
+      "custom_contributors": [],
+      "ssb_kappa_defaults": {
+        "k1_sample_decomposition": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k2_matrix_separation": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k3_procedural_blank": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k4_bracketing_standard_heterogeneity": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k5_instrumental_drift": {
+          "calculation": "standard_sequence",
+          "distribution": "normal",
+          "enabled": false
+        },
+        "k6_matrix_effects": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k7_residual_interferences": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        }
+      }
+    },
+    "Pb": {
+      "custom_contributors": [],
+      "ssb_kappa_defaults": {
+        "k1_sample_decomposition": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k2_matrix_separation": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k3_procedural_blank": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k4_bracketing_standard_heterogeneity": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k5_instrumental_drift": {
+          "calculation": "standard_sequence",
+          "distribution": "normal",
+          "enabled": false
+        },
+        "k6_matrix_effects": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        },
+        "k7_residual_interferences": {
+          "distribution": "normal",
+          "enabled": false,
+          "source": "n/a",
+          "u_rel_permil": 0.0
+        }
+      }
+    },
+    "Sr": {
+      "custom_contributors": [],
+      "sr_engine_a_defaults": {
+        "enable_sr_norm_ratio_uncertainty": {
+          "enabled": false,
+          "source": "published normalization method",
+          "units": "absolute_ratio",
+          "value": 0.0
+        },
+        "u_bias_qc": {
+          "enabled": true,
+          "source": "lab supplied",
+          "units": "absolute_ratio",
+          "value": 0.0
+        },
+        "u_reprod_dig": {
+          "enabled": true,
+          "source": "lab supplied",
+          "units": "absolute_ratio",
+          "value": 0.0
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

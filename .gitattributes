@@ -1,0 +1,10 @@
+# Keep the platform launchers in their native line endings. A macOS .command
+# file checked out with CRLF fails with a "bad interpreter: ^M" error.
+*.command text eol=lf
+*.sh      text eol=lf
+*.bat     text eol=crlf
+
+# Measurement data is binary. Without this, the repository's autocrlf setting
+# could rewrite bytes inside an HDF5 file and corrupt it.
+*.h5      binary
+*.xlsx    binary

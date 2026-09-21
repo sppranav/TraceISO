@@ -1,0 +1,28 @@
+{
+    "header_row_idx": 22,
+    "footer_row_idx": null,
+    "time_col": "",
+    "cycle_col": "",
+    "isotope_cols": {
+        "106Cd": "106Cd",
+        "110Cd": "110Cd",
+        "111Cd": "111Cd",
+        "112Cd": "112Cd",
+        "113Cd": "113Cd",
+        "114Cd": "114Cd",
+        "116Cd": "116Cd",
+        "117Sn": "117Sn"
+    },
+    "ratio_cols": {},
+    "metadata_cells": {
+        "1,0": "Sample Name",
+        "2,0": "Date",
+        "6,0": "Run Number",
+        "10,0": "Time",
+        "14,0": "Sample Type"
+    },
+    "isotope_system": "Cd",
+    "instrument": "",
+    "name_pattern": ".*?(\\d{2,}_.+)$",
+    "footer_marker": "***"
+}
