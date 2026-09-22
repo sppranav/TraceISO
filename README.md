@@ -110,8 +110,7 @@ TraceISO runs locally on your computer. The main application opens in your brows
 
 **Current release: TraceISO v1.0.0**
 
-TraceISO v1.0.0 supports solution-mode MC-ICP-MS measurements for Li, B, Mg, Sr, Cd and Pb. Laser-ablation and other transient-signal workflows are outside the scope of the current release.
-
+TraceISO v1.0.0 supports solution-mode MC-ICP-MS measurements for Li, B, Mg, Sr, Cd and Pb.
 ---
 
 ## Workflow
