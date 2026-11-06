@@ -144,12 +144,17 @@ normalization and optional calibration path. If its calibration reference cannot
 be resolved, the Tl-normalized trace remains available and the calibration reason
 is stated explicitly.
 
+Excel result and cycle series follow the ratio selection in Session Configuration.
+Clearing that selection removes ratio series; requested intensity data remain.
+Available custom ratios are included, and changing the selection requires preparing
+the report again. Reference-material definitions may still name other ratios.
+
 For Sr internal normalization, Excel automatically uses the Sr scientific
 report. **Summary** and **Results** are always present. **Include uncertainty
 detail** adds Budget_Detail (on by default); turning it off keeps uncertainty
 in Results. **Cycle_Data workbook view** adds one combined cycle table (off by
-default) containing every recorded observation and series, including blanks,
-unselected ratios and excluded values. Calibration and drift stages remain
+default) containing every recorded observation, all intensity channels, and
+per-cycle series for selected ratios, including blanks and excluded values. Calibration and drift stages remain
 distinct. Reprocess after changing a calibration standard's accepted cycles.
 
 For Pb with external Tl normalization, Excel offers **Include uncertainty detail**
@@ -159,13 +164,13 @@ the Tl-normalized stage, with explicit roles and unavailable-result reasons.
 Calibrated delta shows the selected SD/SE precision and **Not calculated** for
 combined uncertainty. Reprocess when a calibration-standard or other calibration
 dependency change makes the session stale. The cycle sheet preserves all recorded
-observations and series, including unselected ratios and rejected cycles.
+observations and intensity channels, plus selected-ratio series and rejected cycles.
 
 In an Engine-B session with SSB enabled, Excel automatically uses the compact
 SSB scientific report. **Summary** and **Results** are always included;
 **Budget_Detail** is selected by default, and the optional **Cycle_Data** view is
-one combined sheet containing every observation, including blanks, with each
-series' accepted/excluded status. In other workflows, choose the Excel
+one combined sheet containing every observation and intensity channel, including blanks,
+with each selected ratio's accepted/excluded status. In other workflows, choose the Excel
 **Workbook layout**: *Diagnostic* keeps the familiar
 workbook led by the Results sheet; *Analyst report* adds **Reported Results**, one
 row per sample, ratio and output mode with its U and Coverage k, and keeps Results

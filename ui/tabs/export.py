@@ -225,8 +225,9 @@ def _render_content_options(export_format: str) -> dict:
                 key="export_include_ratio_statistics",
                 disabled=(export_format == "csv"),
                 help=(
-                    "Excel: enables the Cycle_Data route, containing per-cycle arrays "
-                    "and a statistics block; use the dependent sheet option below to "
+                    "Excel: enables the Cycle_Data route, containing all intensity "
+                    "channels and per-cycle data for selected ratios, plus a statistics "
+                    "block; use the dependent sheet option below to "
                     "include or omit it. JSON: includes raw ratio summaries."
                 ),
             )
@@ -820,7 +821,8 @@ def _generate_excel(result, options: dict, processing_config) -> BytesIO:
         kwargs["processing_config"] = processing_config
         kwargs["calibration_freshness"] = current_pb_calibration_freshness(state)
         if options.get("include_cycle_data", False):
-            kwargs["cycle_result"] = _build_pb_cycle_export_result(state.result)
+            cycle_result = _build_pb_cycle_export_result(state.result)
+            kwargs["cycle_result"] = _filter_cycle_result_to_report_ratios(cycle_result, result)
     if options.get("excel_layout") == "traceiso.excel_layout.sr_report.v1":
         from file_io.sr_excel_writer import SrReportOptions
 
@@ -832,7 +834,8 @@ def _generate_excel(result, options: dict, processing_config) -> BytesIO:
         kwargs["element_config"] = getattr(state, "element_config", None)
         kwargs["processing_config"] = processing_config
         if options.get("include_cycle_data", False):
-            kwargs["cycle_result"] = _build_sr_cycle_export_result(state.result)
+            cycle_result = _build_sr_cycle_export_result(state.result)
+            kwargs["cycle_result"] = _filter_cycle_result_to_report_ratios(cycle_result, result)
     if options.get("excel_layout") == "traceiso.excel_layout.ssb_report.v1":
         from file_io.ssb_excel_writer import SSBReportOptions
 
@@ -842,14 +845,13 @@ def _generate_excel(result, options: dict, processing_config) -> BytesIO:
             ),
             include_cycle_data=options.get("include_cycle_data", False),
         )
-        # Preserve an unfiltered copied measurement view for the rectangular
-        # Cycle_Data sheet. Runtime report-ratio filtering must not discard raw
-        # channels or observations from this archive view.
+        # Prepare the full cycle view before limiting visible ratio series to
+        # the report scope. Intensity channels and observations remain intact.
         if options.get("include_cycle_data", False):
             cycle_result = _build_runtime_export_result_uncached(
                 state.result, all_ratios=True,
             )
-            kwargs["cycle_result"] = cycle_result
+            kwargs["cycle_result"] = _filter_cycle_result_to_report_ratios(cycle_result, result)
     if "contributor_profile_scope" in options:
         kwargs["contributor_profile_scope"] = options["contributor_profile_scope"]
     if options["include_parameters"]:
@@ -1275,6 +1277,19 @@ def _collect_export_ratio_names(result: ProcessingResult) -> set:
     return ratio_names
 
 
+def _collect_report_ratio_scope(result: ProcessingResult) -> set:
+    """Collect ratio keys from every mapping a report writer may serialize."""
+    ratio_names = _collect_export_ratio_names(result)
+    for sample in result.samples:
+        for name in (
+            "interference_corrected_ratios", "sr_standard_corrected_ratios",
+            "pb_standard_corrected_ratios", "pb_calibrated_delta_cycles",
+            "ssb_results", "delta_results", "uncertainty", "mc_results",
+        ):
+            ratio_names.update((getattr(sample, name, None) or {}).keys())
+    return ratio_names
+
+
 def _get_selected_export_ratios() -> Set[str]:
     """Get active ratio selection from the ratio manager."""
     state = get_state()
@@ -1456,13 +1471,11 @@ def _filter_result_to_ratios(
         sample.sr_standard_corrected_ratios = {
             k: v for k, v in sample.sr_standard_corrected_ratios.items() if k in ratio_set
         }
-        if result.element_symbol in {"Sr", "Pb"}:
-            sample.interference_corrected_ratios = {
-                k: v for k, v in sample.interference_corrected_ratios.items() if k in ratio_set
-            }
-        if result.element_symbol == "Pb":
-            sample.pb_standard_corrected_ratios = {k: v for k, v in sample.pb_standard_corrected_ratios.items() if k in ratio_set}
-            sample.pb_calibrated_delta_cycles = {k: v for k, v in sample.pb_calibrated_delta_cycles.items() if k in ratio_set}
+        sample.interference_corrected_ratios = {
+            k: v for k, v in sample.interference_corrected_ratios.items() if k in ratio_set
+        }
+        sample.pb_standard_corrected_ratios = {k: v for k, v in sample.pb_standard_corrected_ratios.items() if k in ratio_set}
+        sample.pb_calibrated_delta_cycles = {k: v for k, v in sample.pb_calibrated_delta_cycles.items() if k in ratio_set}
         sample.drift_corrected_ratios = {
             k: v for k, v in sample.drift_corrected_ratios.items() if k in ratio_set
         }
@@ -1479,6 +1492,29 @@ def _filter_result_to_ratios(
             k: v for k, v in (sample.mc_results or {}).items() if k in ratio_set
         }
     return result
+
+
+def _filter_cycle_result_to_report_ratios(
+    cycle_result: ProcessingResult, report_result: ProcessingResult,
+) -> ProcessingResult:
+    """Limit visible cycle ratio series to the prepared report's scope."""
+    # Sr/Pb cycle snapshots retain recorded layers. A selected custom ratio may
+    # only have been materialized in the report copy; carry those derived arrays
+    # across without replacing recorded (including excluded) cycle values.
+    reports = {sample.observation_id: sample for sample in report_result.samples}
+    for sample in cycle_result.samples:
+        report_sample = reports.get(sample.observation_id)
+        if report_sample is None:
+            continue
+        for ratio in report_sample.metadata.get("_export_time_ratio_derivations", {}):
+            for name in ("ratios", "blank_corrected_ratios", "corrected_ratios"):
+                source = getattr(report_sample, name).get(ratio)
+                target = getattr(sample, name)
+                if source is not None and ratio not in target:
+                    target[ratio] = source.copy()
+    return _filter_result_to_ratios(
+        cycle_result, sorted(_collect_report_ratio_scope(report_result)),
+    )
 
 
 def _runtime_export_input_token(
@@ -1509,6 +1545,7 @@ def _runtime_export_input_token(
         # MC records are mutable session membership even though each record is
         # frozen. A new run must invalidate previously prepared downloads.
         digest([(s.observation_id, s.mc_results) for s in result.samples]),
+        _has_selected_ratio_selection(state),
         tuple(sorted(_get_selected_export_ratios())),
         digest(scientific_configuration(getattr(state, "element_config", None))),
         _processing_config_token(getattr(state, "processing_config", None)),
@@ -1583,9 +1620,8 @@ def _build_runtime_export_result_uncached(
         processing_config=state.processing_config,
     )
     ratio_names = sorted(selected_ratios) if all_ratios else _resolve_export_ratio_names(out, selected_ratios)
-    # Preserve normalization/calibration dependencies until runtime consumers finish.
-    if result.element_symbol != "Pb":
-        _filter_result_to_ratios(out, ratio_names)
+    # Runtime consumers receive the full copied dependency context for every
+    # element. Narrow presentation mappings only after budgets/delta/masks finish.
     if not ratio_names:
         return _filter_result_to_ratios(out, ratio_names)
 
