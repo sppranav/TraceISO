@@ -1,1 +1,1 @@
-"""TraceISO Neptune Data Extractor package."""
+"""TraceISO Data Extractor package."""

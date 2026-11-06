@@ -1,4 +1,4 @@
-"""Horizontal workflow stepper widget for the Neptune Data Extractor."""
+"""Horizontal workflow stepper widget for the Data Extractor."""
 
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen

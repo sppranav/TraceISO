@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
     def __init__(self):
         super().__init__()
-        style_window(self, "Neptune Data Extractor")
+        style_window(self, "Data Extractor")
         self.resize(1280, 820)
         self.setAcceptDrops(True)
 

@@ -1137,7 +1137,7 @@ def process_batch(
         with h5py.File(staging_path, "x") as f:
             owned_staging = True
             f.attrs["schema_version"] = "traceiso.universal.v1"
-            f.attrs["created_by"] = "Neptune Data Extractor (PyQt)"
+            f.attrs["created_by"] = "Data Extractor (PyQt)"
             f.attrs["metadata_mode"] = (
                 "full_audit" if template_data.get("include_audit_metadata", True) else "minimal"
             )

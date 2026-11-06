@@ -1,13 +1,13 @@
 #!/bin/bash
-# Neptune Data Extractor - Launcher (macOS)
+# Data Extractor - Launcher (macOS)
 #
 # Double-click this file in Finder, or run it from Terminal.
-# It is the macOS counterpart of 03_Neptune_Data_Extractor.bat.
+# It is the macOS counterpart of 03_Data_Extractor.bat.
 
 cd "$(dirname "$0")" || exit 1
 
 setup_required() {
-    echo "Neptune Data Extractor is not set up yet, or its GUI dependency is missing."
+    echo "Data Extractor is not set up yet, or its GUI dependency is missing."
     echo "Run 00_Setup_Update_Dependencies.command, then launch it again."
     echo
     echo "If setup reported that PyQt5 could not be installed, the desktop"
@@ -27,14 +27,14 @@ LOG="${TMPDIR:-/tmp}/traceiso_tools_neptune_data_extractor_main.log"
 nohup venv/bin/python -m tools.neptune_data_extractor.main >"$LOG" 2>&1 &
 TOOL_PID=$!
 
-echo "Starting Neptune Data Extractor..."
+echo "Starting Data Extractor..."
 
 # Surface an immediate startup failure instead of leaving an empty screen.
 sleep 2
 if ! kill -0 "$TOOL_PID" 2>/dev/null; then
     wait "$TOOL_PID"
     echo
-    echo "Neptune Data Extractor did not start. Details:"
+    echo "Data Extractor did not start. Details:"
     echo
     cat "$LOG"
     echo
@@ -42,5 +42,5 @@ if ! kill -0 "$TOOL_PID" 2>/dev/null; then
     exit 1
 fi
 
-echo "Neptune Data Extractor is running. You can close this window."
+echo "Data Extractor is running. You can close this window."
 exit 0

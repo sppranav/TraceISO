@@ -82,7 +82,7 @@ else
     echo "[Setup] This usually means your Python is newer than the available"
     echo "[Setup] PyQt5 wheels. Python 3.12 is the safest version for the tools."
     echo "[Setup] TraceISO itself will still run. Only the separate desktop"
-    echo "[Setup] tools (CRM Library Manager, Neptune Data Extractor, Neptune"
+    echo "[Setup] tools (CRM Library Manager, Data Extractor, Neptune"
     echo "[Setup] Blank Restorer, Global Uncertainty Manager) are unavailable."
     echo
 fi

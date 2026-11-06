@@ -1,1 +1,1 @@
-"""Neptune Data Extractor UI package."""
+"""Data Extractor UI package."""

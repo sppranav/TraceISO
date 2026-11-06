@@ -161,8 +161,8 @@ _DESKTOP_TOOLS = (
     ),
     (
         "tools.neptune_data_extractor.main",
-        "Neptune Data Extractor",
-        "Open the desktop tool for extracting Neptune data into TraceISO HDF5.",
+        "Data Extractor",
+        "Open the desktop tool for extracting supported instrument data into TraceISO HDF5.",
     ),
     (
         "tools.global_uncertainty_manager",

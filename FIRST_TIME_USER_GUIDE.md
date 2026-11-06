@@ -243,7 +243,7 @@ The main Streamlit app then runs from that launcher window.
 The other `.bat` files open the standalone desktop tools:
 
 - `02_CRM_Library_Manager_Launcher.bat`
-- `03_Neptune_Data_Extractor.bat`
+- `03_Data_Extractor.bat`
 - `05_Global_Uncertainty_Manager_Launcher.bat`
 
 If the Global Uncertainty Manager reports that setup is incomplete or its GUI dependency is unavailable, run `00_Setup_Update_Dependencies.bat`, wait for successful completion, then launch it again.
@@ -365,7 +365,7 @@ Each tool has its own double-clickable launcher, matching the Windows `.bat`
 files one for one:
 
 - `02_CRM_Library_Manager_Launcher.command`
-- `03_Neptune_Data_Extractor.command`
+- `03_Data_Extractor.command`
 - `05_Global_Uncertainty_Manager_Launcher.command`
 
 The tool opens in its own window and detaches from the Terminal, so you can
@@ -377,7 +377,7 @@ From Terminal, the equivalent commands are:
 ```bash
 source venv/bin/activate
 python -m tools.crm_manager                  # CRM Library Manager
-python -m tools.neptune_data_extractor.main  # Neptune Data Extractor
+python -m tools.neptune_data_extractor.main  # Data Extractor
 python -m tools.global_uncertainty_manager   # Global Uncertainty Manager
 ```
 
@@ -448,7 +448,7 @@ Please include:
 
 ### Desktop tool workflows
 
-All three desktop tools—CRM Library Manager, Neptune Data Extractor, and Global
+All three desktop tools—CRM Library Manager, Data Extractor, and Global
 Uncertainty Manager—use one TraceISO light theme: white panels, muted teal primary
 actions, consistent fonts and tables, visible keyboard focus, and a shared window
 icon/title. Their workflow-specific layouts are retained. Reopen a tool to load the
@@ -462,7 +462,7 @@ replacing the in-memory library. Search filters names/elements; validation issue
 open the affected record. Derived Ratios includes a read-only standard uncertainty
 where its semantics permit conversion. Blank uncertainty remains different from zero.
 
-In Neptune Data Extractor, choose a built-in template or Custom Mapping, use the
+In Data Extractor, choose a built-in template or Custom Mapping, use the
 visible mapping controls, and undo/redo mapping changes with Ctrl+Z/Ctrl+Shift+Z.
 File/template changes start a new history. Sample-naming presets preview filename
 rules; mapped Sample Name cells can override them. **Convert All N Files** and

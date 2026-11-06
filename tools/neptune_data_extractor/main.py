@@ -22,7 +22,7 @@ def main():
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
     app = QApplication(sys.argv)
-    app.setApplicationName("TraceISO — Neptune Data Extractor")
+    app.setApplicationName("TraceISO — Data Extractor")
     app.setOrganizationName("TraceISO")
     theme.apply(app)
 

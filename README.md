@@ -141,7 +141,7 @@ Changing cycle windows or exclusions in Sample Inspector updates the displayed s
 
 Upload cycle-resolved measurements in TraceISO's HDF5 format. The application identifies the isotope system from the recorded isotope channels.
 
-Use the **Neptune Data Extractor** to convert supported instrument exports with a built-in template or custom column mapping.
+Use the **Data Extractor** to convert supported instrument exports with a built-in template or custom column mapping.
 
 For Nu Plasma II Sr CSV exports matching the supplied `misc/TEST_DATA/Nu_data`
 layout, choose the built-in **nu_plasma_Sr** template. It extracts the `(1)` cup
@@ -200,7 +200,7 @@ Excel downloads include saved Monte Carlo results when available, but omit the s
 | Tool                                 | Purpose                                    |
 | ------------------------------------ | ------------------------------------------ |
 | **CRM Manager**                | View and edit reference-material values.   |
-| **Neptune Data Extractor**     | Convert supported instrument data to HDF5. |
+| **Data Extractor**     | Convert supported instrument data to HDF5. |
 | **Global Uncertainty Manager** | Manage shared uncertainty settings.        |
 | **Desktop Launcher**           | Open the application and its tools.        |
 

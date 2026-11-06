@@ -16,7 +16,7 @@ import uuid
 
 TOOLS = {
     "crm": ("CRM Library Manager", "tools.crm_manager.__main__"),
-    "extractor": ("Neptune Data Extractor", "tools.neptune_data_extractor.main"),
+    "extractor": ("Data Extractor", "tools.neptune_data_extractor.main"),
     "uncertainty": ("Global Uncertainty Manager", "tools.global_uncertainty_manager.__main__"),
 }
 
