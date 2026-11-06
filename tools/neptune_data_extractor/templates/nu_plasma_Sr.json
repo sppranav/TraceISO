@@ -1,13 +1,27 @@
 {
     "instrument": "Nu Plasma",
     "isotope_system": "Sr",
-    "header_row_idx": 0,
+    "header_row_idx": 64,
     "footer_row_idx": null,
     "footer_marker": "",
-    "time_col": "Time",
-    "cycle_col": "Cycle",
-    "isotope_cols": {},
+    "time_col": null,
+    "cycle_col": "Cycle [col 0]",
+    "isotope_cols": {
+        "H5 (1) [col 26]": "88Sr",
+        "H3 (1) [col 28]": "87Sr",
+        "H1 (1) [col 30]": "86Sr",
+        "L1 (1) [col 32]": "85Rb",
+        "L3 (1) [col 34]": "84Sr",
+        "L5 (1) [col 36]": "83Kr"
+    },
     "ratio_cols": {},
-    "metadata_cells": {},
-    "name_pattern": ".*"
+    "metadata_cells": {
+        "2,1": "Date",
+        "3,1": "Time",
+        "7,1": "Sample Name"
+    },
+    "name_pattern": ".*",
+    "run_number_pattern": "Data_(\\d+)",
+    "intensity_baseline_corrected": true,
+    "preserve_sample_name": true
 }

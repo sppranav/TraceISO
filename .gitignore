@@ -48,5 +48,10 @@ CITATION.cff
 
 # Local working material moved out of the release tree
 /misc/
+misc
 
 /~$*.docx
+docs
+outputs
+output
+tmp

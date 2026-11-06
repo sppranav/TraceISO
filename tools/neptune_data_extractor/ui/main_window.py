@@ -24,6 +24,7 @@ from tools.neptune_data_extractor.mapper_logic import (
     extract_metadata_from_df,
     extract_sample_data,
     freeze_template_data,
+    load_file_as_df,
     normalize_template_schema,
 )
 from tools.neptune_data_extractor.batch_worker import BatchWorker, ValidationWorker
@@ -485,14 +486,7 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         # Hide onboarding overlay once a file is loaded
         self.onboarding.hide()
         try:
-            ext = os.path.splitext(filepath)[1].lower()
-            if ext in [".xls", ".xlsx"]:
-                self.current_df = pd.read_excel(filepath, header=None)
-            else:
-                with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-                    head = f.read(1024)
-                sep = '\t' if '\t' in head else (',' if ',' in head else None)
-                self.current_df = pd.read_csv(filepath, sep=sep, header=None, engine='python')
+            self.current_df = load_file_as_df(filepath)
             self._render_grid()
             self._update_ui_labels()
             self._history_boundary()
@@ -831,6 +825,7 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
                  
         meta_str_keys = {f"{r},{c}": v for (r, c), v in self.mapping["metadata_cells"].items()}
         template_preview = {
+            **self._source_template_options(),
             "metadata_cells": meta_str_keys,
             "name_pattern": self.combo_name_parse.currentText()
         }
@@ -849,7 +844,7 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
 
         # Check mapping state directly for missing items
         mapped_fields = list(self.mapping.get("metadata_cells", {}).values())
-        has_run = "Run Number" in mapped_fields or "run" in [f.lower() for f in mapped_fields]
+        has_run = bool(self.mapping.get("run_number_pattern")) or "Run Number" in mapped_fields or "run" in [f.lower() for f in mapped_fields]
         has_type = "Sample Type" in mapped_fields or "Type" in mapped_fields
         has_date = "Date" in mapped_fields or "date" in [f.lower() for f in mapped_fields]
 
@@ -974,6 +969,7 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         # Build Template
         meta_str_keys = {f"{r},{c}": v for (r, c), v in self.mapping["metadata_cells"].items()}
         template_data = {
+            **self._source_template_options(),
             "header_row_idx": self.header_row_idx,
             "footer_row_idx": getattr(self, "footer_row_idx", None),
             "time_col": self.mapping["time_col"],
@@ -1247,6 +1243,7 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
             self._normalize_mapping_schema()
             meta_str_keys = {f"{r},{c}": v for (r, c), v in self.mapping["metadata_cells"].items()}
             data = {
+                **self._source_template_options(),
                 "header_row_idx": self.header_row_idx,
                 "footer_row_idx": self.footer_row_idx,
                 "time_col": self.mapping["time_col"],
@@ -1574,6 +1571,12 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
             return
         event.accept()
 
+    def _source_template_options(self):
+        """Retain source-state and filename rules through preview/save/batch."""
+        return {key: self.mapping[key] for key in
+                ("run_number_pattern", "intensity_baseline_corrected", "preserve_sample_name")
+                if key in self.mapping}
+
     def _build_template_data(self):
         """Snapshot the current mapping for a batch.
 
@@ -1583,6 +1586,7 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         """
         meta_str_keys = {f"{r},{c}": v for (r, c), v in self.mapping["metadata_cells"].items()}
         return freeze_template_data({
+            **self._source_template_options(),
             "include_audit_metadata": self.include_audit_metadata.isChecked(),
             "header_row_idx": self.header_row_idx,
             "footer_row_idx": self.footer_row_idx,
@@ -1608,6 +1612,10 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
             self.mapping["cycle_col"] = data.get("cycle_col")
             self.mapping["isotope_cols"] = data.get("isotope_cols", {})
             self.mapping["ratio_cols"]   = data.get("ratio_cols", {})
+            for key in ("run_number_pattern", "intensity_baseline_corrected", "preserve_sample_name"):
+                self.mapping.pop(key, None)
+                if key in data:
+                    self.mapping[key] = data[key]
             if "isotope_system" in data:
                 self.combo_system.setCurrentText(data["isotope_system"])
             if "instrument" in data:

@@ -42,8 +42,8 @@ _FILTER_METHOD_ALIASES = {
 _FILTER_METHOD_DISPLAY_NAMES = {
     FILTER_METHOD_NONE: "None",
     FILTER_METHOD_STANDARD_DEVIATION: "Standard deviation",
-    FILTER_METHOD_MAD: "Robust MAD",
-    FILTER_METHOD_IQR: "IQR",
+    FILTER_METHOD_MAD: "Median absolute deviation (MAD)",
+    FILTER_METHOD_IQR: "Interquartile range (IQR)",
 }
 
 

@@ -284,7 +284,8 @@ def render_processing_settings(
             key=f"{key_prefix}_filter",
             help=(
                 "Optional cycle rejection before averaging. Routine workflows "
-                "use no rejection, a standard-deviation cutoff, robust MAD, or IQR."
+                "use no rejection, a standard-deviation cutoff, median absolute "
+                "deviation (MAD), or interquartile range (IQR)."
             ),
         )
 

@@ -1276,6 +1276,7 @@ def _render_intensity_stats(
         filter_threshold=DEFAULT_OUTLIER_THRESHOLD_SD,
     )
     n_valid = len(valid)
+    n_in_range = cycle_range[1] - cycle_range[0] + 1 if cycle_range else sample.n_cycles
     if n_valid == 0:
         return
 
@@ -1298,13 +1299,14 @@ def _render_intensity_stats(
             "SE": se_str,
             "RSD": rsd_intensity_str,
             "RSE": rse_intensity_str,
-            "n accepted": str(n_valid),
+            "n accepted": f"{n_valid}/{n_in_range}",
             "\u03b4 \u00b1 2SD": "",
         },
         note=(
+            "Counts are accepted/total cycles in the selected cycle window. "
             "Intensity n counts the cycles accepted by the selected ratio."
             if selected_ratio
-            else None
+            else "Counts are accepted/total cycles in the selected cycle window."
         ),
     )
 

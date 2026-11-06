@@ -361,6 +361,9 @@ def template_mapping_summary(template_data: Mapping[str, Any]) -> Dict[str, Any]
         "isotope_system": template_data.get("isotope_system"),
         "instrument": template_data.get("instrument"),
         "name_pattern": template_data.get("name_pattern"),
+        "run_number_pattern": template_data.get("run_number_pattern"),
+        "intensity_baseline_corrected": template_data.get("intensity_baseline_corrected"),
+        "preserve_sample_name": template_data.get("preserve_sample_name"),
     }
 
 
@@ -401,6 +404,7 @@ def load_file_as_df(path) -> pd.DataFrame:
     """Loads a data file (.csv, .txt, .exp, .xls, .xlsx) into a Pandas DataFrame."""
     try:
         import hashlib
+        import csv
         from io import BytesIO, StringIO
         source_bytes = Path(path).read_bytes()
         ext = Path(path).suffix.lower()
@@ -413,7 +417,18 @@ def load_file_as_df(path) -> pd.DataFrame:
             if '\t' in head: sep = '\t'
             elif ',' in head: sep = ','
             else: sep = None
-            frame = pd.read_csv(StringIO(text), sep=sep, header=None, engine='python')
+            # Instrument exports have short metadata rows before a wider
+            # measurement table (Nu Plasma also has a trailing header comma).
+            # Determine the complete width with CSV quoting respected, then
+            # pad short rows rather than dropping any metadata or data rows.
+            # Keep pandas' existing blank-line handling so saved grid indices
+            # for Neptune templates retain their meaning.
+            read_options = {}
+            if sep is not None:
+                width = max((len(row) for row in csv.reader(StringIO(text), delimiter=sep)), default=0)
+                if width:
+                    read_options["names"] = list(range(width))
+            frame = pd.read_csv(StringIO(text), sep=sep, header=None, engine='python', **read_options)
         frame.attrs['source_sha256'] = hashlib.sha256(source_bytes).hexdigest()
         frame.attrs['source_sha1'] = hashlib.sha1(source_bytes).hexdigest()
         return frame
@@ -465,7 +480,8 @@ def extract_metadata_from_df(df_raw: pd.DataFrame, fname: str, template_data: Di
                 val = str(df_raw.iloc[r, c]).strip()
                 
                 # Neptune Name Cleaner
-                if field_name in ("Filename", "Sample Name"):
+                preserve_name = field_name == "Sample Name" and template_data.get("preserve_sample_name", False)
+                if field_name in ("Filename", "Sample Name") and not preserve_name:
                      clean_name = Path(val).stem
                      m_val = re.search(r'.*?(\d{2,}_.+)$', clean_name)
                      val = m_val.group(1) if m_val else clean_name
@@ -475,7 +491,7 @@ def extract_metadata_from_df(df_raw: pd.DataFrame, fname: str, template_data: Di
                 if field_name == "Sample Name":
                     sample_name = val
                 
-                if field_name in ("Filename", "Sample Name"):
+                if field_name in ("Filename", "Sample Name") and not preserve_name:
                     run_match = re.search(r'^(\d+)_', val)
                     if run_match and "Run number" not in extracted_meta:
                         extracted_meta["Run number"] = int(run_match.group(1))
@@ -490,6 +506,21 @@ def extract_metadata_from_df(df_raw: pd.DataFrame, fname: str, template_data: Di
                         
         except Exception as e:
             logger.warning(f"Failed to extract metadata {field_name} from {fname}: {e}")
+
+    # Some instruments put the acquisition number only in the source filename.
+    # An explicit template rule avoids confusing a sample ID with run order.
+    run_pattern = template_data.get("run_number_pattern")
+    if run_pattern and "Run number" not in extracted_meta:
+        if len(run_pattern) > MAX_NAME_PATTERN_LENGTH:
+            raise ValueError("Run-number pattern is too long.")
+        match = re.fullmatch(run_pattern, stem)
+        if match is None or match.lastindex is None or not match.group(1).isdigit():
+            raise ValueError(f"Run-number pattern must capture an integer from {fname}.")
+        extracted_meta["Run number"] = int(match.group(1))
+
+    # This is source-state metadata, not an instruction to subtract a baseline.
+    if "intensity_baseline_corrected" in template_data:
+        extracted_meta["intensity_baseline_corrected"] = template_data["intensity_baseline_corrected"]
 
     raw_type = None
     if "Sample Type" in extracted_meta: raw_type = extracted_meta.pop("Sample Type")

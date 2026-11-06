@@ -143,6 +143,17 @@ Upload cycle-resolved measurements in TraceISO's HDF5 format. The application id
 
 Use the **Neptune Data Extractor** to convert supported instrument exports with a built-in template or custom column mapping.
 
+For Nu Plasma II Sr CSV exports matching the supplied `misc/TEST_DATA/Nu_data`
+layout, choose the built-in **nu_plasma_Sr** template. It extracts the `(1)` cup
+signals unchanged, assumes they are already baseline corrected, and records that
+assumption in the sample metadata. The `(Z1)` zero readings are not subtracted.
+This template maps H5/H3/H1/L1/L3/L5 to 88Sr/87Sr/86Sr/85Rb/84Sr/83Kr,
+preserves sample names, and reads run numbers from `Data_<number>.csv` filenames.
+It uses the extractor's existing convention that bare intensity numbers are volts;
+confirm the cup assignment and units before using it with another acquisition method.
+Import the resulting HDF5 normally, assign sample/standard roles and the appropriate
+CRM, and use blank correction **none** when no separate solution blank is provided.
+
 ---
 
 ## Uncertainty Evaluation
