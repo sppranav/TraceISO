@@ -1,6 +1,6 @@
 {
     "header_row_idx": 22,
-    "footer_row_idx": 73,
+    "footer_row_idx": null,
     "time_col": null,
     "cycle_col": null,
     "isotope_cols": {
@@ -20,5 +20,6 @@
         "9,0": "Date",
         "14,0": "Sample Type"
     },
-    "isotope_system": "Pb"
+    "isotope_system": "Pb",
+    "footer_marker": "***"
 }

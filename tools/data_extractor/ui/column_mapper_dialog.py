@@ -9,20 +9,37 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 
-from tools.neptune_data_extractor.mapper_logic import DISAMBIGUATED_COLUMN_PATTERN
+from tools.data_extractor.mapper_logic import (
+    DISAMBIGUATED_COLUMN_PATTERN,
+    ISOTOPE_NAME_PATTERN,
+    POSITIONAL_COLUMN_PATTERN,
+)
+
+UNNAMED = "(type a name)"
 
 
 def _default_target_name(source_col: str) -> str:
-    """Return a clean target name from a source column label."""
+    """Return a clean target name from a source column label.
+
+    A headerless column ('col 23') has no name to offer: it starts empty and
+    the user types one.
+    """
     text = str(source_col).strip()
+    if POSITIONAL_COLUMN_PATTERN.fullmatch(text):
+        return ""
     match = DISAMBIGUATED_COLUMN_PATTERN.fullmatch(text)
     return match.group("name") if match else text
+
+
+def _item_text(source: str, target: str) -> str:
+    return f"{source}  ->  {target or UNNAMED}"
 
 
 class ColumnMapperDialog(QDialog):
     """Dual-list dialog: Available Columns  <-->  Mapped Columns."""
 
-    def __init__(self, available_cols, already_mapped, mode="isotope", parent=None):
+    def __init__(self, available_cols, already_mapped, mode="isotope", parent=None,
+                 *, preselect=None, require_isotope_names=False):
         """
         Parameters
         ----------
@@ -32,11 +49,19 @@ class ColumnMapperDialog(QDialog):
             Existing mapping {source_col: target_name}.
         mode : str
             "isotope" or "ratio" - only affects the title.
+        preselect : list[str], optional
+            Columns chosen in the grid; they start on the mapped side, so the
+            user only names them instead of searching the full column list.
+        require_isotope_names : bool
+            Every target must be a canonical isotope name such as ``87Sr``.
+            A position such as ``col 23`` says nothing about the isotope, so
+            it is never accepted as one.
         """
         super().__init__(parent)
         self.setWindowTitle(f"Map Columns -> {mode.title()}s")
         self.resize(620, 420)
         self._result_mapping = dict(already_mapped)
+        self.require_isotope_names = require_isotope_names
 
         root = QVBoxLayout(self)
 
@@ -73,17 +98,19 @@ class ColumnMapperDialog(QDialog):
         for src, tgt in already_mapped.items():
             if src == tgt:
                 tgt = _default_target_name(src)
-            it = QListWidgetItem(f"{src}  ->  {tgt}")
+            it = QListWidgetItem(_item_text(src, tgt))
             it.setData(Qt.UserRole, (src, tgt))
             self.mapped_list.addItem(it)
         rl.addWidget(self.mapped_list)
 
-        # rename area
+        # rename area: also where an unnamed (headerless) column gets its name
         rename_lay = QFormLayout()
         self.rename_input = QLineEdit()
-        self.rename_input.setPlaceholderText("Select a mapped column to rename")
-        rename_lay.addRow("Rename to:", self.rename_input)
-        self.btn_rename = QPushButton("Apply Rename")
+        self.rename_input.setPlaceholderText(
+            "Isotope name, e.g. 87Sr" if require_isotope_names else "Target name")
+        self.rename_input.returnPressed.connect(self._apply_rename)
+        rename_lay.addRow("Name:", self.rename_input)
+        self.btn_rename = QPushButton("Apply Name")
         self.btn_rename.clicked.connect(self._apply_rename)
         rename_lay.addRow("", self.btn_rename)
         rl.addLayout(rename_lay)
@@ -95,23 +122,39 @@ class ColumnMapperDialog(QDialog):
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btns.accepted.connect(self.accept)
         btns.rejected.connect(self.reject)
+        # Enter in the name box applies the name; it must not close the dialog.
+        for button in (*btns.buttons(), self.btn_add, self.btn_remove, self.btn_rename):
+            button.setAutoDefault(False)
+            button.setDefault(False)
         root.addWidget(btns)
 
         self.mapped_list.currentItemChanged.connect(self._on_select_mapped)
 
+        if preselect:
+            wanted = set(preselect)
+            for i in range(self.avail_list.count()):
+                item = self.avail_list.item(i)
+                item.setSelected(item.text() in wanted)
+            self._move_right(validate=False)
+            if self.mapped_list.count():
+                self._select_next_unnamed(fallback=self.mapped_list.count() - 1)
+                self.rename_input.setFocus()
+                self.rename_input.selectAll()
+
     # ---- actions ----
-    def _move_right(self):
+    def _move_right(self, validate=True):
         for it in self.avail_list.selectedItems():
             col = it.text()
             target = _default_target_name(col)
-            new_it = QListWidgetItem(f"{col}  ->  {target}")
+            new_it = QListWidgetItem(_item_text(col, target))
             new_it.setData(Qt.UserRole, (col, target))
             self.mapped_list.addItem(new_it)
             self.avail_list.takeItem(self.avail_list.row(it))
         # Disambiguated duplicate headers (e.g. "88Sr [col 1]" / "88Sr [col 2]")
         # both default to the same clean target — surface that immediately
         # rather than waiting for Ok, without undoing the move.
-        self._validate_mapping()
+        if validate:
+            self._validate_mapping()
 
     def _move_left(self):
         for it in self.mapped_list.selectedItems():
@@ -137,11 +180,38 @@ class ColumnMapperDialog(QDialog):
             )
             return
 
-        cur.setData(Qt.UserRole, (src, new_name))
-        if not self._validate_mapping():
-            cur.setData(Qt.UserRole, (src, old_tgt))
+        # Judge only the name being entered: other rows may still be waiting
+        # for their own names (several selected columns arrive unnamed), and
+        # those are checked when the dialog is accepted.
+        if self.require_isotope_names and not ISOTOPE_NAME_PATTERN.fullmatch(new_name):
+            QMessageBox.warning(
+                self, "Invalid target name",
+                f"'{new_name}' is not an isotope name; use the form 87Sr.",
+            )
             return
-        cur.setText(f"{src}  ->  {new_name}")
+        for i in range(self.mapped_list.count()):
+            other = self.mapped_list.item(i)
+            if other is not cur and str(other.data(Qt.UserRole)[1]).strip() == new_name:
+                QMessageBox.warning(
+                    self, "Duplicate target name",
+                    f"Target name '{new_name}' is already assigned to "
+                    f"'{other.data(Qt.UserRole)[0]}'.",
+                )
+                return
+        cur.setData(Qt.UserRole, (src, new_name))
+        cur.setText(_item_text(src, new_name))
+        # Move on to the next column still waiting for a name.
+        if self._select_next_unnamed():
+            self.rename_input.setFocus()
+
+    def _select_next_unnamed(self, fallback=None) -> bool:
+        for i in range(self.mapped_list.count()):
+            if not str(self.mapped_list.item(i).data(Qt.UserRole)[1]).strip():
+                self.mapped_list.setCurrentRow(i)
+                return True
+        if fallback is not None:
+            self.mapped_list.setCurrentRow(fallback)
+        return False
 
     # ---- validation ----
     def _find_collision(
@@ -155,6 +225,8 @@ class ColumnMapperDialog(QDialog):
             _src, tgt = item.data(Qt.UserRole)
             tgt = str(tgt).strip()
             if not tgt:
+                return item, item, tgt
+            if self.require_isotope_names and not ISOTOPE_NAME_PATTERN.fullmatch(tgt):
                 return item, item, tgt
             if tgt in seen:
                 return seen[tgt], item, tgt
@@ -182,8 +254,10 @@ class ColumnMapperDialog(QDialog):
             if existing_item is colliding_item:
                 QMessageBox.warning(
                     self, "Invalid target name",
-                    f"Source column '{existing_src}' has an empty target "
-                    "name. Choose a target name before continuing.",
+                    f"Source column '{existing_src}' needs "
+                    + ("an isotope name such as 87Sr" if self.require_isotope_names
+                       else "a target name")
+                    + f" (now '{target}'). Rename it before continuing.",
                 )
             else:
                 QMessageBox.warning(
@@ -215,7 +289,7 @@ class ColumnMapperDialog(QDialog):
             colliding_src, _ = colliding_item.data(Qt.UserRole)
             if existing_item is colliding_item:
                 raise ValueError(
-                    f"Source column '{existing_src}' has an empty target name."
+                    f"Source column '{existing_src}' has an invalid target name {target!r}."
                 )
             raise ValueError(
                 f"Duplicate target name '{target}' assigned to both "

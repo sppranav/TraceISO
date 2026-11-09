@@ -1,0 +1,45 @@
+{
+    "instrument": "Nu Plasma",
+    "isotope_system": "Sr",
+    "layout": "positional",
+    "header_row_idx": null,
+    "footer_row_idx": null,
+    "data_start_marker": "^Sample Name is\\b",
+    "footer_marker": "End of Analysis",
+    "data_row_width": 42,
+    "time_col": "col 40",
+    "cycle_col": "col 39",
+    "isotope_cols": {
+        "col 20": "91Zr",
+        "col 21": "90Zr",
+        "col 23": "88Sr",
+        "col 25": "87Sr",
+        "col 27": "86Sr",
+        "col 29": "85Rb",
+        "col 31": "84Sr",
+        "col 33": "83Kr",
+        "col 35": "82Kr"
+    },
+    "baseline_cols": {
+        "91Zr": "col 1",
+        "90Zr": "col 2",
+        "88Sr": "col 4",
+        "87Sr": "col 6",
+        "86Sr": "col 8",
+        "85Rb": "col 10",
+        "84Sr": "col 12",
+        "83Kr": "col 14",
+        "82Kr": "col 16"
+    },
+    "ratio_cols": {},
+    "metadata_cells": {},
+    "metadata_patterns": {
+        "Sample Name": "^Sample Name is\\s+(.+?)\\s*$",
+        "Analysis Method": "^Run File = (.+?)\\s*$",
+        "Time": "^\\s*Started analysis at (\\d{1,2}:\\d{2}) on ",
+        "Date": "^\\s*Started analysis at \\d{1,2}:\\d{2} on (\\w{3} \\d{1,2} \\d{4})"
+    },
+    "name_pattern": ".*",
+    "run_number_pattern": ".*?Data[ _#]*(\\d+)\\)?",
+    "preserve_sample_name": true
+}

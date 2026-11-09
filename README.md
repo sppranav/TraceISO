@@ -143,14 +143,23 @@ Upload cycle-resolved measurements in TraceISO's HDF5 format. The application id
 
 Use the **Data Extractor** to convert supported instrument exports with a built-in template or custom column mapping.
 
-For Nu Plasma II Sr CSV exports matching the supplied `misc/TEST_DATA/Nu_data`
-layout, choose the built-in **nu_plasma_Sr** template. It extracts the `(1)` cup
-signals unchanged, assumes they are already baseline corrected, and records that
-assumption in the sample metadata. The `(Z1)` zero readings are not subtracted.
-This template maps H5/H3/H1/L1/L3/L5 to 88Sr/87Sr/86Sr/85Rb/84Sr/83Kr,
-preserves sample names, and reads run numbers from `Data_<number>.csv` filenames.
-It uses the extractor's existing convention that bare intensity numbers are volts;
-confirm the cup assignment and units before using it with another acquisition method.
+Built-in templates cover Thermo Neptune exports (B, Cd, Li, Mg, Pb-Tl, Sr) and
+classic Nu Plasma Sr exports (**nu_plasma_Sr**).
+
+The **nu_plasma_Sr** template reads exports without a column-header row: each
+file's data starts after its `Sample Name is …` line and ends at `End of Analysis`.
+It maps 91Zr, 90Zr, 88Sr, 87Sr, 86Sr, 85Rb, 84Sr, 83Kr and 82Kr, subtracts each
+signal's zero reading cycle by cycle, takes the sample name, date, time and method
+from the file's text lines, and reads the run number from `Data_<number>` filenames.
+On the supplied SRM 987 run and method blank, the extracted cycles reproduce the
+Nu NICE run values. Bare intensity numbers are read as volts; confirm the cup
+assignment before using it with another acquisition method.
+
+For other layouts, use Custom Mapping: map the signal columns (selecting cells
+chooses columns; the exported rows run from the header, or start line, to the
+footer), and optionally assign a baseline column to each isotope and switch on
+**Subtract baselines**. Whether subtraction was applied is recorded with each sample.
+
 Import the resulting HDF5 normally, assign sample/standard roles and the appropriate
 CRM, and use blank correction **none** when no separate solution blank is provided.
 

@@ -81,7 +81,7 @@ include = ["config*", "domain*", "file_io*", "ui*", "tools*"]
 config = ["*.json"]
 tools = [
     "crm_manager/resources/*.qss",
-    "neptune_data_extractor/templates/*.json",
+    "data_extractor/templates/*.json",
 ]
 
 [tool.setuptools.data-files]

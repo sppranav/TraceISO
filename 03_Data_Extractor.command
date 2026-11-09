@@ -23,8 +23,8 @@ venv/bin/python -c "import importlib.util, sys; sys.exit(0 if importlib.util.fin
 
 # Detach the tool from this Terminal window, mirroring the Windows launcher's
 # use of pythonw. Output goes to a log file so a startup failure is not lost.
-LOG="${TMPDIR:-/tmp}/traceiso_tools_neptune_data_extractor_main.log"
-nohup venv/bin/python -m tools.neptune_data_extractor.main >"$LOG" 2>&1 &
+LOG="${TMPDIR:-/tmp}/traceiso_tools_data_extractor_main.log"
+nohup venv/bin/python -m tools.data_extractor.main >"$LOG" 2>&1 &
 TOOL_PID=$!
 
 echo "Starting Data Extractor..."

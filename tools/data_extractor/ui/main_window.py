@@ -1,5 +1,6 @@
 
 import os
+import re
 import json
 import logging
 import traceback
@@ -16,26 +17,28 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QPoint, QSettings
 from PyQt5.QtGui import QColor, QFont, QDropEvent, QDragEnterEvent, QKeySequence
 
-from tools.neptune_data_extractor.mapper_logic import (
+from tools.data_extractor.mapper_logic import (
     NAN_FRACTION_THRESHOLD,
     base_column_name,
     column_nan_fractions,
+    derive_positional_layout,
     disambiguate_header_values,
     extract_metadata_from_df,
     extract_sample_data,
     freeze_template_data,
     load_file_as_df,
     normalize_template_schema,
+    suggest_baseline_cols,
 )
-from tools.neptune_data_extractor.batch_worker import BatchWorker, ValidationWorker
-from tools.neptune_data_extractor.ui.mapping_workflow import MappingWorkflow
-from tools.neptune_data_extractor.ui.batch_report import BatchReport
+from tools.data_extractor.batch_worker import BatchWorker, ValidationWorker
+from tools.data_extractor.ui.mapping_workflow import MappingWorkflow
+from tools.data_extractor.ui.batch_report import BatchReport
 from tools.desktop_theme import style_window, action_role
-from tools.neptune_data_extractor.ui import theme
-from tools.neptune_data_extractor.ui.stepper_widget import StepperWidget
-from tools.neptune_data_extractor.ui.file_list_widget import EnhancedFileList
-from tools.neptune_data_extractor.ui.onboarding_overlay import OnboardingOverlay
-from tools.neptune_data_extractor.ui.column_mapper_dialog import ColumnMapperDialog
+from tools.data_extractor.ui import theme
+from tools.data_extractor.ui.stepper_widget import StepperWidget
+from tools.data_extractor.ui.file_list_widget import EnhancedFileList
+from tools.data_extractor.ui.onboarding_overlay import OnboardingOverlay
+from tools.data_extractor.ui.column_mapper_dialog import ColumnMapperDialog
 
 _TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "templates"
 _SETTINGS_KEY_RECENT = "neptunedataextractor/recent_templates"
@@ -46,7 +49,19 @@ MAX_RECENT = 5
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
+# Template keys the window does not edit but must carry through preview,
+# save and batch unchanged. The positional keys describe headerless exports
+# (classic Nu Plasma). footer_marker is carried in both modes; a template
+# without one gets the window's default "***".
+SOURCE_TEMPLATE_KEYS = (
+    "run_number_pattern", "intensity_baseline_corrected", "preserve_sample_name",
+    "layout", "data_start_marker", "data_row_width", "baseline_cols", "baseline_enabled",
+    "metadata_patterns",
+    "footer_marker",
+)
+
+
+class DataExtractorWindow(QMainWindow, MappingWorkflow):
     def __init__(self):
         super().__init__()
         style_window(self, "Data Extractor")
@@ -72,6 +87,8 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         self._validation_cancel_requested = False
         self._last_outcome = None
         self._workers = []
+        # Settings key kept from the tool's earlier name, so saved window state and
+        # recent folders carry over.
         self._settings = QSettings("TraceISO", "NeptuneDataExtractor")
         self._migrate_legacy_settings()
 
@@ -251,6 +268,16 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
 
         self.lbl_isotopes = QLabel("0 Selected")
         form_layout.addRow("Isotopes:", self.lbl_isotopes)
+
+        # Subtraction can be switched off without losing the assignments.
+        self.chk_subtract_baselines = QCheckBox("Subtract baselines")
+        self.chk_subtract_baselines.setToolTip(
+            "On: every mapped isotope minus its assigned baseline column, cycle by cycle.\n"
+            "Off: values are exported as read; baseline assignments are kept in the template.\n"
+            "The output records whether subtraction was applied."
+        )
+        self.chk_subtract_baselines.toggled.connect(self._set_baseline_enabled)
+        form_layout.addRow("Baselines:", self.chk_subtract_baselines)
 
         self.lbl_ratios = QLabel("0 Selected")
         form_layout.addRow("Ratios:", self.lbl_ratios)
@@ -502,9 +529,12 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         rows, cols = df.shape
 
         # --- Fix #3: strip trailing columns that are entirely empty ---
+        # Check every previewed row: instrument exports often have a long, narrow
+        # metadata preamble (Nu Plasma II: 77 lines) above a much wider table,
+        # and judging by the first 50 rows hid every signal column.
         last_col = cols - 1
         while last_col > 0:
-            col_vals = [str(df.iloc[r, last_col]).strip() for r in range(min(rows, 50))]
+            col_vals = [str(df.iloc[r, last_col]).strip() for r in range(min(rows, 500))]
             if all(v == "" or v.lower() == "nan" for v in col_vals):
                 last_col -= 1
             else:
@@ -515,10 +545,15 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
 
         self.table.setRowCount(preview_rows)
         self.table.setColumnCount(cols)
-        self.table.setHorizontalHeaderLabels([str(i) for i in range(cols)])
+        self.table.setHorizontalHeaderLabels(
+            [self.get_col_name(i) if self._is_positional() else str(i) for i in range(cols)]
+        )
 
-        # Fix #6: hide the numeric row header on the left
-        self.table.verticalHeader().setVisible(True)  # keep for row reference
+        # Row numbers count from 0, like the column numbers, the [col N] labels,
+        # the context-menu actions and the template's row indices. Qt's default
+        # labels count from 1, which put every row one above its menu number.
+        self.table.setVerticalHeaderLabels([str(r) for r in range(preview_rows)])
+        self.table.verticalHeader().setVisible(True)
         self.table.verticalHeader().setDefaultSectionSize(22)
 
         for r in range(preview_rows):
@@ -607,23 +642,33 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         # Data actions. A one-row header selection maps dynamically to each
         # file's footer marker; a multi-row data selection creates a fixed
         # row range shared by the batch.
-        if dynamic_column_mapping:
-            column_word = "Column" if len(cols_list) == 1 else "Columns"
-            iso_label = f"Map {len(cols_list)} {column_word} to Isotopes"
-            ratio_label = f"Map {len(cols_list)} {column_word} to Ratios"
-        else:
-            iso_label = (
-                f"Map {len(cols_list)} Column(s) to Isotopes "
-                f"(Fixed rows {min_row}-{max_row})"
-            )
-            ratio_label = (
-                f"Map {len(cols_list)} Column(s) to Ratios "
-                f"(Fixed rows {min_row}-{max_row})"
-            )
+        column_word = "Column" if len(cols_list) == 1 else "Columns"
+        iso_label = f"Map {len(cols_list)} Selected {column_word} to Isotopes"
+        ratio_label = f"Map {len(cols_list)} Selected {column_word} to Ratios"
         action_map_iso = menu.addAction(iso_label)
         action_map_ratio = menu.addAction(ratio_label)
+        # With subtraction on, the selected column can be made the baseline of
+        # an isotope already mapped, straight from here (one column per isotope).
+        baseline_actions = {}
+        if self._baseline_enabled():
+            baseline_menu = menu.addMenu(
+                f"Map {len(cols_list)} Selected {column_word} as Baseline of")
+            self._fill_baseline_menu(baseline_menu, cols_list, baseline_actions)
         action_set_data_start = menu.addAction(f"Row {min_row}: Set as Data Start Row (Header {max(0, min_row-1)})")
         action_set_footer = menu.addAction(f"Row {max_row+1}: Set as Footer Start Row (End {max_row})")
+        if self._is_positional():
+            for row_action in (action_set_data_start, action_set_footer):
+                row_action.setEnabled(False)
+                row_action.setText(row_action.text() + " — " + self._row_action_note())
+            action_leave_positional = menu.addAction("Leave Headerless Layout (clears positional mappings)")
+        else:
+            action_leave_positional = None
+        action_positional = menu.addAction(f"Row {min_row}: No Header – Data Starts Here (positional)")
+        action_positional.setToolTip(
+            "For exports without a column-header row (classic Nu Plasma): columns are\n"
+            "named 'col N', the data is anchored on the text line above this row and\n"
+            "every data row must have the same width."
+        )
         
         data_menu = menu.addMenu("More Column Actions")
         action_map_time_col = data_menu.addAction("Map as Time Column")
@@ -637,7 +682,18 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
             "Required for extracting cycle-resolved data."
         )
         data_menu.addSeparator()
+        mapped_targets = sorted(set(self.mapping["isotope_cols"].values()))
+        action_map_baseline = data_menu.addAction("Map as Baseline of…")
+        action_map_baseline.setEnabled(len(cols_list) == 1 and bool(mapped_targets))
+        action_map_baseline.setToolTip(
+            "This column holds the zero/baseline reading of one mapped isotope;\n"
+            "it is subtracted from that isotope on every cycle."
+        )
+        action_suggest_baseline = data_menu.addAction("Suggest Baseline Pairs…")
+        action_suggest_baseline.setEnabled(bool(mapped_targets))
+        data_menu.addSeparator()
         action_dynamic_footer = data_menu.addAction("Use Dynamic Footer (***)")
+        action_dynamic_footer.setEnabled(not self._is_positional())
         action_dynamic_footer.setToolTip(
             "Stop each file at its own first *** row. Use this when blanks, "
             "standards, and samples have different cycle counts."
@@ -664,6 +720,24 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         # Data
         elif action == action_set_data_start:
             self.set_header_row(max(0, min_row - 1))
+
+        elif action_leave_positional is not None and action == action_leave_positional:
+            self._leave_positional()
+            self.set_header_row(0)
+            self._render_grid()
+            self._update_ui_labels()
+
+        elif action == action_positional:
+            self._set_positional_start(min_row)
+
+        elif action in baseline_actions:
+            self._assign_baseline_from_selection(cols_list[0], min_row, baseline_actions[action])
+
+        elif action == action_map_baseline:
+            self._map_baseline(cols_list[0], mapped_targets)
+
+        elif action == action_suggest_baseline:
+            self._suggest_baselines()
             
         elif action == action_set_footer:
             self.set_footer_row(max_row + 1)
@@ -672,13 +746,13 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
             self._apply_selection_bounds_for_column_mapping(
                 min_row, max_row, dynamic=dynamic_column_mapping
             )
-            self._open_isotope_dialog(cols_list)
+            self._open_isotope_dialog(cols_list, min_row)
 
         elif action == action_map_ratio:
             self._apply_selection_bounds_for_column_mapping(
                 min_row, max_row, dynamic=dynamic_column_mapping
             )
-            self._open_ratio_dialog(cols_list)
+            self._open_ratio_dialog(cols_list, min_row)
             
         elif action == action_map_time_col:
             self.mapping["time_col"] = self.get_col_name(cols_list[0])
@@ -713,15 +787,309 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
                 # Clear Time/Cycle
                 if self.mapping.get("time_col") == col_name: self.mapping["time_col"] = ""
                 if self.mapping.get("cycle_col") == col_name: self.mapping["cycle_col"] = ""
-                
+
+                # Clear baselines held in this column
+                baselines = self.mapping.get("baseline_cols") or {}
+                for target in [t for t, src in baselines.items() if src == col_name]:
+                    del baselines[target]
+
+            self._drop_orphan_baselines()
             # Clear Metadata in the selected block
             for r in range(min_row, max_row + 1):
                 for c in cols_list:
                     self.mapping["metadata_cells"].pop((r, c), None)
-                    
+
             self._update_ui_labels()
+            self._refresh_highlights()
+
+    # --- Baselines and headerless (positional) layouts -----------------------
+
+    def _set_isotope_cols(self, new_cols):
+        """Replace the isotope mapping; each baseline stays with its signal column.
+
+        ``baseline_cols`` is keyed by isotope name, but a baseline belongs to a
+        signal *column*. Renaming that column's isotope (or swapping two names)
+        must carry the baseline along, or it would be subtracted from the
+        wrong signal. Baselines whose signal column is no longer mapped go.
+        """
+        new_cols = dict(new_cols)
+        old_cols = dict(self.mapping.get("isotope_cols", {}))
+        baselines = self.mapping.get("baseline_cols") or {}
+        if baselines:
+            source_of = {target: source for source, target in old_cols.items()}
+            rekeyed = {}
+            for target, baseline_source in baselines.items():
+                new_target = new_cols.get(source_of.get(target))
+                if new_target:
+                    rekeyed[new_target] = baseline_source
+            if rekeyed:
+                self.mapping["baseline_cols"] = rekeyed
+            else:
+                self.mapping.pop("baseline_cols", None)
+        self.mapping["isotope_cols"] = new_cols
+
+    def _row_action_note(self):
+        return ("not used by a headerless layout: each file's data runs from its "
+                "start-marker line to its footer line")
+
+    def _baseline_enabled(self):
+        """Mirror mapper_logic.baseline_subtraction_enabled for the live mapping."""
+        if "baseline_enabled" in self.mapping:
+            return bool(self.mapping["baseline_enabled"])
+        return bool(self.mapping.get("baseline_cols"))
+
+    def _set_baseline_enabled(self, checked):
+        # Written explicitly either way, so a saved template says what it means.
+        self.mapping["baseline_enabled"] = bool(checked)
+        self._update_ui_labels()
+        self._refresh_highlights()
+
+    def _drop_orphan_baselines(self):
+        """Remove baselines whose isotope is no longer mapped."""
+        baselines = self.mapping.get("baseline_cols")
+        if not baselines:
+            self.mapping.pop("baseline_cols", None)
+            return
+        targets = set(self.mapping["isotope_cols"].values())
+        for target in [t for t in baselines if t not in targets]:
+            del baselines[target]
+        if not baselines:
+            self.mapping.pop("baseline_cols", None)
+
+    def _fill_baseline_menu(self, submenu, cols_list, actions):
+        """One entry per mapped isotope, showing the baseline it has now.
+
+        *actions* receives {QAction: isotope}. Entries are disabled (with the
+        reason as the only entry) when the choice cannot be made from here.
+        """
+        targets = sorted(set(self.mapping["isotope_cols"].values()))
+        if not targets:
+            submenu.addAction("(map the signal columns to isotopes first)").setEnabled(False)
+            return
+        if len(cols_list) != 1:
+            submenu.addAction("(select cells in one column: one baseline per isotope)").setEnabled(False)
+            return
+        source = self.get_col_name(cols_list[0])
+        if source and source in self.mapping["isotope_cols"]:
+            submenu.addAction(f"('{source}' is mapped as an isotope signal)").setEnabled(False)
+            return
+        current = self.mapping.get("baseline_cols") or {}
+        for target in targets:
+            existing = current.get(target)
+            if existing is None:
+                text = target
+            elif source and existing == source:
+                text = f"{target}   (this column)"
+            else:
+                text = f"{target}   (replaces {existing})"
+            action = submenu.addAction(text)
+            if source and existing == source:
+                action.setCheckable(True)
+                action.setChecked(True)
+            actions[action] = target
+
+    def _assign_baseline_from_selection(self, col_idx, top_row, target):
+        # An unnamed column under no real header gets its layout first, exactly
+        # as when the same cells are mapped to isotopes.
+        if not self._name_selected_columns([col_idx], top_row):
+            return
+        source = self.get_col_name(col_idx)
+        if not source:
+            QMessageBox.warning(self, "Map Baseline",
+                                "This column has no name in the current layout; set the header "
+                                "row or the headerless layout first.")
+            return
+        self._assign_baseline(target, source)
+
+    def _map_baseline(self, col_idx, targets):
+        target, ok = QInputDialog.getItem(
+            self, "Map Baseline",
+            f"Column '{self.get_col_name(col_idx)}' is the baseline of:", targets, 0, False)
+        if not ok or not target:
+            return
+        self._assign_baseline(target, self.get_col_name(col_idx))
+
+    def _assign_baseline(self, target, source):
+        if source in self.mapping["isotope_cols"]:
+            QMessageBox.warning(self, "Map Baseline",
+                                "That column is mapped as an isotope signal; clear it first.")
+            return
+        if not self.mapping.get("baseline_cols"):
+            # The first assignment switches subtraction on, as the box says.
+            self.mapping["baseline_enabled"] = True
+        self.mapping.setdefault("baseline_cols", {})[target] = source
+        self._update_ui_labels()
+        self._refresh_highlights()
+
+    def _suggest_baselines(self):
+        """Propose baseline pairs, show them, and apply only on confirmation."""
+        if self.current_df is None:
+            return
+        columns = [self.get_col_name(c) for c in range(len(self.current_df.columns))]
+        existing = dict(self.mapping.get("baseline_cols") or {})
+        pairs, notes = suggest_baseline_cols(columns, self.mapping["isotope_cols"], existing)
+        new = {t: s for t, s in pairs.items() if t not in existing}
+        if not new:
+            QMessageBox.information(self, "Suggest Baseline Pairs",
+                                    "No new pairs found.\n\n" + "\n".join(notes))
+            return
+        text = "\n".join(f"{t}  ←  {s}" for t, s in sorted(new.items()))
+        if notes:
+            text += "\n\nNot paired:\n" + "\n".join(notes)
+        answer = QMessageBox.question(self, "Suggest Baseline Pairs",
+                                      "Subtract these baselines?\n\n" + text)
+        if answer == QMessageBox.Yes:
+            self.mapping["baseline_cols"] = pairs
+            self._update_ui_labels()
+            self._refresh_highlights()
+
+    def _set_positional_start(self, first_data_row):
+        """Switch to a headerless layout whose data starts at *first_data_row*."""
+        if self.current_df is None:
+            return
+        try:
+            layout = derive_positional_layout(self.current_df, first_data_row)
+        except ValueError as exc:
+            QMessageBox.warning(self, "No Header – Data Starts Here", str(exc))
+            return
+        # Header-named mappings mean nothing without a header; drop them openly.
+        named = [k for k in self.mapping["isotope_cols"] if not k.startswith("col ")]
+        dropped = len(named) + len([v for v in (self.mapping.get("baseline_cols") or {}).values()
+                                    if not v.startswith("col ")])
+        for key in named:
+            del self.mapping["isotope_cols"][key]
+        for key in ("time_col", "cycle_col"):
+            if self.mapping.get(key) and not str(self.mapping[key]).startswith("col "):
+                self.mapping[key] = ""
+        baselines = self.mapping.get("baseline_cols") or {}
+        for target in [t for t, v in baselines.items() if not v.startswith("col ")]:
+            del baselines[target]
+        self._drop_orphan_baselines()
+        self.mapping.update(layout)
+        self.footer_row_idx = None
+        self.set_header_row(0)
+        self._render_grid()
+        self._update_ui_labels()
+        if dropped:
+            QMessageBox.information(
+                self, "No Header – Data Starts Here",
+                f"{dropped} header-named column mapping(s) were cleared; map the "
+                "columns again by position.")
+
+    def _leave_positional(self):
+        if not self._is_positional():
+            return
+        for key in ("layout", "data_start_marker", "data_row_width", "footer_marker"):
+            self.mapping.pop(key, None)
+        for key in [k for k in self.mapping["isotope_cols"] if k.startswith("col ")]:
+            del self.mapping["isotope_cols"][key]
+        baselines = self.mapping.get("baseline_cols") or {}
+        for target in [t for t, v in baselines.items() if v.startswith("col ")]:
+            del baselines[target]
+        self._drop_orphan_baselines()
+        for key in ("time_col", "cycle_col"):
+            if str(self.mapping.get(key) or "").startswith("col "):
+                self.mapping[key] = ""
+
+    def _is_positional(self):
+        return self.mapping.get("layout") == "positional"
+
+    @staticmethod
+    def _is_blank(value):
+        return str(value).strip().lower() in ("", "nan", "none")
+
+    def _first_data_row_of(self, row):
+        """Return the first row of the numeric block containing *row*, or None.
+
+        Data rows start with a number in the first column (a cycle number or a
+        zero reading); the block begins below the first row that does not.
+        """
+        if self.current_df is None or not 0 <= row < len(self.current_df):
+            return None
+        first = self.current_df.iloc[:, 0].tolist()
+
+        def numeric(value):
+            try:
+                float(str(value).strip())
+                return not self._is_blank(value)
+            except ValueError:
+                return False
+
+        if not numeric(first[row]):
+            return None
+        while row > 0 and numeric(first[row - 1]):
+            row -= 1
+        return row
+
+    def _header_cell_blank(self, col_idx):
+        """True when the current header row has no name for this column."""
+        row = self.header_row_idx
+        if self.current_df is None or not 0 <= row < len(self.current_df):
+            return True
+        return self._is_blank(self.current_df.iat[row, col_idx])
+
+    def _name_selected_columns(self, cols_list, top_row):
+        """Set the layout the selected data cells imply, without asking.
+
+        Only when a selected column has no name in the current header row and
+        that header row is not the row directly above the selected data block:
+        - the row above the block is a header (it names several columns):
+          make it the header row;
+        - it is not (classic Nu: one text line, 'Sample Name is ...'): switch to
+          the headerless layout anchored on that line.
+        Otherwise a blank header cell is just an unnamed column ('col N'),
+        named in the dialog. Returns False when the dialog should not open.
+        """
+        if self.current_df is None or self._is_positional():
+            return True
+        if not any(self._header_cell_blank(c) for c in cols_list):
+            return True
+        first = self._first_data_row_of(top_row if top_row is not None else -1)
+        if first is None or first == 0 or first - 1 == self.header_row_idx:
+            return True
+        above = self.current_df.iloc[first - 1].tolist()
+        if sum(not self._is_blank(v) for v in above) >= 2:
+            self.set_header_row(first - 1)
+            self._update_ui_labels()
+            return True
+        try:
+            derive_positional_layout(self.current_df, first)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Columns without a header",
+                                "There is no header above the selected cells, and the "
+                                "file cannot be read without one:\n\n" + str(exc))
+            return False
+        self._set_positional_start(first)
+        return self._is_positional()
+
+    def _positional_rows(self):
+        """Return (data-start marker row, footer row) of the loaded file.
+
+        Mirrors mapper_logic._positional_data_block for display only; either
+        may be None when the file does not match the template, in which case
+        preview/validation report the real error.
+        """
+        if self.current_df is None or self.current_df.empty:
+            return None, None
+        first = self.current_df.iloc[:, 0].tolist()
+        marker_row = None
+        try:
+            pattern = re.compile(str(self.mapping.get("data_start_marker") or ""))
+            hits = [i for i, v in enumerate(first) if isinstance(v, str) and pattern.search(v)]
+            marker_row = hits[0] if len(hits) == 1 else None
+        except re.error:
+            pass
+        footer_row = None
+        footer = self.mapping.get("footer_marker")
+        if marker_row is not None and footer:
+            footer_row = next((i for i in range(marker_row + 1, len(first))
+                               if str(first[i]).strip().startswith(footer)), None)
+        return marker_row, footer_row
 
     def get_col_name(self, col_idx):
+        # Positional templates have no header row: columns are named by index.
+        if self._is_positional():
+            return f"col {col_idx}"
         # If header row set, use value from that row. Duplicate labels are
         # decorated with their visible grid column index so mappings can target
         # a specific repeated cup label.
@@ -729,8 +1097,22 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
             header_values = self.current_df.iloc[self.header_row_idx].tolist()
             labels = disambiguate_header_values(header_values)
             if 0 <= col_idx < len(labels):
+                # A blank header cell is an unnamed column ('col N') only under a
+                # real header row. Before the header is set, row 0 is usually a
+                # preamble line ('Version 2', a report title): its blanks are not
+                # columns of anything, so they stay unnamed and hidden.
+                if self._is_blank(header_values[col_idx]) and \
+                        sum(not self._is_blank(v) for v in header_values) < 2:
+                    return ""
                 return labels[col_idx]
         return str(col_idx)
+
+    def _header_row_is_real(self):
+        """True when the current header row names at least two columns."""
+        if self.current_df is None or not 0 <= self.header_row_idx < len(self.current_df):
+            return False
+        values = self.current_df.iloc[self.header_row_idx].tolist()
+        return sum(not self._is_blank(v) for v in values) >= 2
 
     def set_header_row(self, row_idx):
         self.header_row_idx = row_idx
@@ -773,22 +1155,37 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         self, min_row, max_row, *, dynamic=None
     ):
         """Apply automatic dynamic-header or fixed-data-block row bounds."""
+        # A selection identifies columns. The exported rows come from the header
+        # row and footer (or, headerless, the data-start marker and footer), and
+        # are changed only by the explicit Data Start / Footer row actions; a
+        # selection of a few data cells must never shorten the exported block.
+        if self._is_positional():
+            return
         if dynamic is None:
             dynamic = self._selection_is_header_row(min_row, max_row)
         if dynamic:
+            # Selecting the header row itself names the header; that is layout,
+            # not a row range.
             self.set_header_row(min_row)
             self.set_footer_row(None)
-            return
-        self.set_header_row(max(0, min_row - 1))
-        self.set_footer_row(max_row + 1)
 
     def _available_column_names(self):
-        """Return named columns from the configured header row."""
+        """Return the columns that can be mapped.
+
+        Named header columns, plus unnamed ones ('col N') that hold data below
+        the header; the user names those in the mapping dialog.
+        """
         names = []
+        df = self.current_df
         for column in range(self.table.columnCount()):
             name = self.get_col_name(column).strip()
             if not name or name.lower() == "nan":
                 continue
+            if (not self._is_positional() and df is not None
+                    and column < len(df.columns) and self._header_cell_blank(column)):
+                below = df.iloc[self.header_row_idx + 1:, column].tolist()
+                if all(self._is_blank(v) for v in below):
+                    continue
             names.append(name)
         return names
 
@@ -802,6 +1199,14 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         
         fr = getattr(self, "footer_row_idx", None)
         self.lbl_footer_row.setText(str(fr) if fr is not None else "(End of File)")
+        if self._is_positional():
+            marker_row, footer_row = self._positional_rows()
+            self.lbl_header_row.setText(
+                "none (positional)" if marker_row is None
+                else f"none (positional) - data after row {marker_row}")
+            self.lbl_footer_row.setText(
+                f"{footer_row} ({self.mapping.get('footer_marker')})" if footer_row is not None
+                else f"not found: {self.mapping.get('footer_marker')!r}")
         
         # Time Column: clarify 'Not Set' vs truly absent instruments
         time_col = self.mapping.get("time_col") or ""
@@ -810,7 +1215,36 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         
         # Isotopes
         iso_count = len(self.mapping["isotope_cols"])
-        self.lbl_isotopes.setText(f"{iso_count} Selected")
+        base_count = len([t for t in (self.mapping.get("baseline_cols") or {})
+                          if t in self.mapping["isotope_cols"].values()])
+        enabled = self._baseline_enabled()
+        suffix = ""
+        if base_count:
+            suffix = f" · {base_count} with baseline" + ("" if enabled else " (subtraction off)")
+        self.lbl_isotopes.setText(f"{iso_count} Selected" + suffix)
+        self.chk_subtract_baselines.blockSignals(True)
+        self.chk_subtract_baselines.setChecked(enabled)
+        # Usable whenever there is something to switch: assignments exist, or
+        # subtraction is on without any (so it can always be switched off).
+        # Always clickable. Switched on before any baseline is assigned, it says
+        # what is still needed; extraction refuses to run in that state rather
+        # than export unsubtracted values under a 'subtracted' switch.
+        self.chk_subtract_baselines.setEnabled(True)
+        waiting = enabled and not self.mapping.get("baseline_cols")
+        self.chk_subtract_baselines.setText(
+            "Subtract baselines (now assign a baseline column to each isotope)"
+            if waiting else "Subtract baselines")
+        self.chk_subtract_baselines.setToolTip(
+            "On: every mapped isotope minus its assigned baseline column, cycle by cycle.\n"
+            "Off: values are exported as read; baseline assignments are kept in the template.\n"
+            "The output records whether subtraction was applied.\n\n"
+            "Assign a baseline: select cells of a zero/baseline column, right-click ->\n"
+            "Map 1 Selected Column as Baseline of -> the isotope (shown while this is on),\n"
+            "or More Column Actions -> Map as Baseline of... / Suggest Baseline Pairs....\n"
+            "The first assignment switches subtraction on.")
+        if hasattr(self, "_mapping_actions"):
+            self._mapping_selection_changed()
+        self.chk_subtract_baselines.blockSignals(False)
         
         # Ratios
         ratio_count = len(self.mapping.get("ratio_cols", {}))
@@ -980,7 +1414,7 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
             "isotope_system": self.combo_system.currentText(),
             "instrument": self.input_instrument.text().strip(),
             "name_pattern": self.combo_name_parse.currentText(),
-            "footer_marker": "***"
+            "footer_marker": self.mapping.get("footer_marker", "***")
         }
         
         try:
@@ -1071,26 +1505,40 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         self.mapping["metadata_cells"][(r, c)] = field_name
         self._update_ui_labels()
 
-    def _open_isotope_dialog(self, cols_list):
-        """Open ColumnMapperDialog for isotope column assignment."""
-        # Build available columns from header row
+    def _open_isotope_dialog(self, cols_list, top_row=None):
+        """Open ColumnMapperDialog with the selected grid columns already added.
+
+        The user names each one (an isotope name is required); the rest of the
+        file's columns stay available on the left for anything not selected.
+        """
+        if not self._name_selected_columns(cols_list, top_row):
+            return
         available = self._available_column_names()
         already = dict(self.mapping.get("isotope_cols", {}))
-        dlg = ColumnMapperDialog(available, already, mode="isotope", parent=self)
+        selected = [n for n in (self.get_col_name(c) for c in cols_list)
+                    if n in available and n not in already]
+        dlg = ColumnMapperDialog(available, already, mode="isotope", parent=self,
+                                 preselect=selected, require_isotope_names=True)
         if dlg.exec_():
             try:
-                self.mapping["isotope_cols"] = dlg.get_mapping()
+                self._set_isotope_cols(dlg.get_mapping())
             except ValueError as exc:
                 QMessageBox.warning(self, "Invalid column mapping", str(exc))
                 return
             self._update_ui_labels()
+            self._refresh_highlights()
 
 
-    def _open_ratio_dialog(self, cols_list):
-        """Open ColumnMapperDialog for ratio column assignment."""
+    def _open_ratio_dialog(self, cols_list, top_row=None):
+        """Open ColumnMapperDialog with the selected grid columns already added."""
+        if not self._name_selected_columns(cols_list, top_row):
+            return
         available = self._available_column_names()
         already = dict(self.mapping.get("ratio_cols", {}))
-        dlg = ColumnMapperDialog(available, already, mode="ratio", parent=self)
+        selected = [n for n in (self.get_col_name(c) for c in cols_list)
+                    if n in available and n not in already]
+        dlg = ColumnMapperDialog(available, already, mode="ratio", parent=self,
+                                 preselect=selected)
         if dlg.exec_():
             try:
                 self.mapping["ratio_cols"] = dlg.get_mapping()
@@ -1103,6 +1551,9 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
     def _effective_footer_start_row(self) -> int:
         """Return explicit footer row or first marker row in the preview table."""
         rows = self.table.rowCount()
+        if self._is_positional():
+            _, footer_row = self._positional_rows()
+            return rows if footer_row is None else min(footer_row, rows)
         footer_start_row = getattr(self, "footer_row_idx", None)
         if footer_start_row is not None:
             return min(max(int(footer_start_row), 0), rows)
@@ -1110,7 +1561,9 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         if self.current_df is None or self.current_df.empty:
             return rows
 
-        marker = "***"
+        marker = self.mapping.get("footer_marker", "***")
+        if not marker:
+            return rows   # no footer marker: data runs to the end of the file
         start = min(max(int(self.header_row_idx) + 1, 0), len(self.current_df))
         stop = min(rows, len(self.current_df))
         for r in range(start, stop):
@@ -1141,7 +1594,31 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         # Explicit footer row, or first footer marker row when using dynamic
         # footer detection. This mirrors mapper_logic.extract_sample_data().
         footer_start_row = self._effective_footer_start_row()
-        
+
+        # Positional templates: the data-start marker line plays the header's
+        # role and metadata comes from pattern-matched text lines. Baseline
+        # columns are shown in their own colour next to their isotope.
+        header_row = self.header_row_idx
+        zero_of = {src: target for target, src in (self.mapping.get("baseline_cols") or {}).items()}
+        pattern_rows = {}
+        if self._is_positional():
+            marker_row, _ = self._positional_rows()
+            header_row = rows if marker_row is None else marker_row
+            first = self.current_df.iloc[:, 0].tolist() if self.current_df is not None else []
+            for field, pattern in (self.mapping.get("metadata_patterns") or {}).items():
+                try:
+                    compiled = re.compile(str(pattern))
+                except re.error:
+                    continue
+                row = next((i for i, v in enumerate(first) if isinstance(v, str) and compiled.search(v)), None)
+                if row is not None:
+                    pattern_rows.setdefault(row, []).append(field)
+        bg_zero = QColor(theme.HL["zero"][0])
+        fg_zero = QColor(theme.HL["zero"][1])
+        # Column names are the same on every row: work them out once, not per cell
+        # (per cell, a 500 x 42 grid took seconds to repaint).
+        col_names = [self.get_col_name(c) for c in range(cols)]
+        baseline_on = self._baseline_enabled()
 
         for r in range(rows):
             is_footer = r >= footer_start_row
@@ -1162,7 +1639,7 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
                         continue # Skip other highlights for footer
                     
                     # Header Row
-                    if r == self.header_row_idx:
+                    if r == header_row:
                         item.setBackground(bg_header)
                         item.setForeground(fg_header)
                         item.setFont(QFont(theme.ui_family(), 8, QFont.Bold))
@@ -1172,11 +1649,23 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
                         item.setBackground(bg_meta)
                         item.setForeground(fg_meta)
                         item.setToolTip(f"Mapped to: {self.mapping['metadata_cells'][(r,c)]}")
-                        
+                    if c == 0 and r in pattern_rows:
+                        item.setBackground(bg_meta)
+                        item.setForeground(fg_meta)
+                        item.setToolTip("Metadata pattern: " + ", ".join(pattern_rows[r]))
+
                     # Column Logic (only applies BELOW header row)
-                    if r > self.header_row_idx:
-                        col_name = self.get_col_name(c)
+                    if r > header_row:
+                        col_name = col_names[c]
                         base_col = base_column_name(col_name)
+                        zero_target = zero_of.get(col_name, zero_of.get(base_col))
+                        if zero_target:
+                            item.setBackground(bg_zero)
+                            item.setForeground(fg_zero)
+                            item.setToolTip(
+                                f"Baseline of {zero_target}: subtracted from it on every cycle"
+                                if baseline_on
+                                else f"Baseline of {zero_target}: assigned, subtraction is off")
                         if (
                             col_name == self.mapping["time_col"]
                             or base_col == self.mapping["time_col"]
@@ -1254,7 +1743,7 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
                 "isotope_system": self.combo_system.currentText(),
                 "instrument": self.input_instrument.text().strip(),
                 "name_pattern": self.combo_name_parse.currentText(),
-                "footer_marker": "***",
+                "footer_marker": self.mapping.get("footer_marker", "***"),
             }
             try:
                 with open(fname, "w") as f:
@@ -1574,7 +2063,7 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
     def _source_template_options(self):
         """Retain source-state and filename rules through preview/save/batch."""
         return {key: self.mapping[key] for key in
-                ("run_number_pattern", "intensity_baseline_corrected", "preserve_sample_name")
+                SOURCE_TEMPLATE_KEYS
                 if key in self.mapping}
 
     def _build_template_data(self):
@@ -1598,7 +2087,7 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
             "isotope_system": self.combo_system.currentText(),
             "instrument": self.input_instrument.text().strip(),
             "name_pattern": self.combo_name_parse.currentText(),
-            "footer_marker": "***",
+            "footer_marker": self.mapping.get("footer_marker", "***"),
         })
 
     def _load_template_from_path(self, path):
@@ -1606,13 +2095,14 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         try:
             with open(path, "r") as f:
                 data = normalize_template_schema(json.load(f))
-            self.header_row_idx = data.get("header_row_idx", 0)
+            # A positional template has no header row; the grid still needs one.
+            self.header_row_idx = data.get("header_row_idx") or 0
             self.set_footer_row(data.get("footer_row_idx", None))
             self.mapping["time_col"]  = data.get("time_col")
             self.mapping["cycle_col"] = data.get("cycle_col")
             self.mapping["isotope_cols"] = data.get("isotope_cols", {})
             self.mapping["ratio_cols"]   = data.get("ratio_cols", {})
-            for key in ("run_number_pattern", "intensity_baseline_corrected", "preserve_sample_name"):
+            for key in SOURCE_TEMPLATE_KEYS:
                 self.mapping.pop(key, None)
                 if key in data:
                     self.mapping[key] = data[key]
@@ -1661,16 +2151,25 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
         if self.current_df is None:
             QMessageBox.information(self, "No File", "Load a file first.")
             return
+        # Use the grid selection when there is one; otherwise offer every column.
+        cells = self.table.selectedItems()
+        selected_cols = sorted({i.column() for i in cells})
+        if cells and not self._name_selected_columns(selected_cols, min(i.row() for i in cells)):
+            return
         available = self._available_column_names()
         already   = dict(self.mapping.get("isotope_cols", {}))
-        dlg = ColumnMapperDialog(available, already, mode="isotope", parent=self)
+        selected = [n for n in (self.get_col_name(c) for c in selected_cols)
+                    if n in available and n not in already]
+        dlg = ColumnMapperDialog(available, already, mode="isotope", parent=self,
+                                 preselect=selected, require_isotope_names=True)
         if dlg.exec_():
             try:
-                self.mapping["isotope_cols"] = dlg.get_mapping()
+                self._set_isotope_cols(dlg.get_mapping())
             except ValueError as exc:
                 QMessageBox.warning(self, "Invalid column mapping", str(exc))
                 return
             self._update_ui_labels()
+            self._refresh_highlights()
 
     def _quick_map_ratios(self):
         """Fix #9: Open ratio column mapper directly from the right panel."""
@@ -1690,4 +2189,4 @@ class NeptuneDataExtractorWindow(QMainWindow, MappingWorkflow):
 
 
 # Backward-compatible class name for callers written before the product rename.
-UniversalMapperWindow = NeptuneDataExtractorWindow
+UniversalMapperWindow = DataExtractorWindow

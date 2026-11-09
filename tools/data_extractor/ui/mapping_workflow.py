@@ -7,7 +7,7 @@ import re
 import pandas as pd
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QAction, QComboBox, QHBoxLayout, QLabel, QPushButton, QSpinBox, QWidget
-from tools.neptune_data_extractor.mapper_logic import extract_metadata_from_df
+from tools.data_extractor.mapper_logic import extract_metadata_from_df
 
 
 class MappingWorkflow:
@@ -148,15 +148,27 @@ class MappingWorkflow:
         self._record_mapping()
 
     def _mapping_selection_changed(self):
-        for button in self._mapping_actions:
-            button.setEnabled(bool(self.table.selectedItems()))
+        selected = bool(self.table.selectedItems())
+        positional = self._is_positional()
+        set_header, set_end, map_cells = self._mapping_actions
+        for button in (set_header, set_end):
+            button.setEnabled(selected and not positional)
+            button.setToolTip(
+                "Disabled: " + self._row_action_note() + "." if positional else
+                "Select a cell or range in the source table first. Data End marks the first excluded footer row."
+            )
+        map_cells.setEnabled(selected)
 
     def _selected_header(self):
+        if self._is_positional():
+            return
         cells = self.table.selectedItems()
         if cells:
             self.set_header_row(min(c.row() for c in cells))
 
     def _selected_end(self):
+        if self._is_positional():
+            return
         cells = self.table.selectedItems()
         if cells:
             self.set_footer_row(min(c.row() for c in cells))

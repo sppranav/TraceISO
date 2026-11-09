@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt, QTimer
 
 from tools import desktop_theme as theme
-from tools.neptune_data_extractor.ui.main_window import NeptuneDataExtractorWindow
+from tools.data_extractor.ui.main_window import DataExtractorWindow
 
 def main():
     # Enable High DPI scaling
@@ -26,7 +26,7 @@ def main():
     app.setOrganizationName("TraceISO")
     theme.apply(app)
 
-    window = NeptuneDataExtractorWindow()
+    window = DataExtractorWindow()
     window.show()
     from tools.desktop_startup import mark_window_ready
     QTimer.singleShot(0, mark_window_ready)

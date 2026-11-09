@@ -24,6 +24,21 @@ NAN_FRACTION_PROVENANCE_THRESHOLD = 0.05
 ISOTOPE_NAME_PATTERN = re.compile(r"^\d+[A-Z][a-z]?$")
 DISAMBIGUATED_COLUMN_PATTERN = re.compile(r"^(?P<name>.+?) \[col (?P<index>\d+)\]$")
 
+# --- Positional (headerless) layouts ----------------------------------------
+#
+# Some instrument exports have no column-header row at all: the classic Nu
+# Plasma cycle file goes straight from a "Sample Name is ..." line into rows of
+# 19 zero readings, 19 on-peak readings, elapsed time, cycle and clock. Such a
+# template sets ``"layout": "positional"`` and names its source columns
+# ``"col N"`` (0-based grid index). With no header to check a pin against, the
+# layout is guarded instead by ``data_start_marker`` (the data must start right
+# after one matching line) and ``data_row_width`` (every data row must be
+# exactly that wide), so a different acquisition method fails loudly rather
+# than being read with the wrong cup assignment. Baseline subtraction
+# (``baseline_cols``) is independent of the layout and works in both modes.
+POSITIONAL_LAYOUT = "positional"
+POSITIONAL_COLUMN_PATTERN = re.compile(r"^col (?P<index>\d+)$")
+
 # Numeric/channel-unit parsing is centralized in config.input_units.parse_token.
 
 # --- Supported clock formats for a mapped time column ----------------------
@@ -61,12 +76,15 @@ def disambiguate_header_values(header_values: List[Any]) -> List[str]:
 
     The extractor template is keyed by source column name, so visible column
     indices make every mapping auditable and remove ambiguity when Neptune
-    exports repeat cup labels. Blank/NaN headers are left unchanged so the UI
-    can keep hiding them.
+    exports repeat cup labels. A column with a blank header cell is labelled
+    ``col N`` (its position), the same form a headerless layout uses, so it
+    can still be mapped and given a name; it then matches only a file whose
+    header cell at that index is blank too.
     """
-    raw = [str(value).strip() for value in header_values]
+    # An empty cell may load as None or NaN; neither is a name.
+    raw = ["" if value is None else str(value).strip() for value in header_values]
     return [
-        f"{name} [col {idx}]" if name and name.lower() != "nan" else name
+        f"{name} [col {idx}]" if name and name.lower() != "nan" else f"col {idx}"
         for idx, name in enumerate(raw)
     ]
 
@@ -269,7 +287,21 @@ def parse_time_column(
         )
 
     first_valid = parsed.dropna().iloc[0]
-    return (parsed - first_valid).dt.total_seconds().to_numpy(), warnings
+    seconds = (parsed - first_valid).dt.total_seconds().to_numpy()
+    # A clock carries no date, so a run that crosses midnight steps back by
+    # almost a day. Cycles are minutes apart at most; a backwards step of more
+    # than half a day is therefore read as the next day, never as time travel.
+    finite = np.flatnonzero(np.isfinite(seconds))
+    if finite.size > 1:
+        steps = np.diff(seconds[finite])
+        days = np.concatenate([[0], np.cumsum(steps < -43200)])
+        if days[-1]:
+            seconds[finite] += days * 86400.0
+            warnings.append(
+                f"Time column '{column_label}' in {fname}: clock passed midnight "
+                f"{int(days[-1])} time(s); later cycles were placed on the following day."
+            )
+    return seconds, warnings
 
 
 def normalize_column_mapping(mapping: Any) -> Dict[str, str]:
@@ -364,6 +396,12 @@ def template_mapping_summary(template_data: Mapping[str, Any]) -> Dict[str, Any]
         "run_number_pattern": template_data.get("run_number_pattern"),
         "intensity_baseline_corrected": template_data.get("intensity_baseline_corrected"),
         "preserve_sample_name": template_data.get("preserve_sample_name"),
+        "layout": template_data.get("layout"),
+        "data_start_marker": template_data.get("data_start_marker"),
+        "data_row_width": template_data.get("data_row_width"),
+        "baseline_cols": dict(template_data.get("baseline_cols", {}) or {}),
+        "baseline_enabled": baseline_subtraction_enabled(template_data),
+        "metadata_patterns": dict(template_data.get("metadata_patterns", {}) or {}),
     }
 
 
@@ -399,6 +437,10 @@ class ExtractedSample:
     cycle_data: np.ndarray
     warnings: List[str] = field(default_factory=list)
     unit_evidence: Dict[str, Any] = field(default_factory=dict)
+    # Filled only when baselines were subtracted: per isotope, the signal as
+    # read and the baseline that was taken off it (both in V, cycle-aligned).
+    uncorrected_data: Dict[str, np.ndarray] = field(default_factory=dict)
+    baseline_data: Dict[str, np.ndarray] = field(default_factory=dict)
 
 def load_file_as_df(path) -> pd.DataFrame:
     """Loads a data file (.csv, .txt, .exp, .xls, .xlsx) into a Pandas DataFrame."""
@@ -507,6 +549,30 @@ def extract_metadata_from_df(df_raw: pd.DataFrame, fname: str, template_data: Di
         except Exception as e:
             logger.warning(f"Failed to extract metadata {field_name} from {fname}: {e}")
 
+    # Pattern metadata: for exports that embed a value in a text line rather
+    # than in a cell of its own ("Sample Name is   SRM987_20ppb_10_11"). Each
+    # pattern is matched against the first-column text of every row; the first
+    # match wins and its first capture group (else the whole match) is taken
+    # verbatim, so a sample ID is never shortened by the Neptune name cleaner.
+    for field_name, pattern in (template_data.get("metadata_patterns") or {}).items():
+        if len(str(pattern)) > MAX_NAME_PATTERN_LENGTH:
+            raise ValueError(f"Metadata pattern for {field_name!r} is too long.")
+        compiled = re.compile(str(pattern))
+        value = None
+        for cell in df_raw.iloc[:, 0].tolist() if len(df_raw.columns) else []:
+            if not isinstance(cell, str):
+                continue
+            match = compiled.search(cell)
+            if match:
+                value = (match.group(1) if match.lastindex else match.group(0)).strip()
+                break
+        if not value:
+            logger.warning("Metadata pattern for %r found no match in %s.", field_name, fname)
+            continue
+        extracted_meta[field_name] = value
+        if field_name == "Sample Name":
+            sample_name = value
+
     # Some instruments put the acquisition number only in the source filename.
     # An explicit template rule avoids confusing a sample ID with run order.
     run_pattern = template_data.get("run_number_pattern")
@@ -566,6 +632,258 @@ def extract_metadata_from_df(df_raw: pd.DataFrame, fname: str, template_data: Di
 
     return sample_name, extracted_meta
 
+def _positional_data_block(df_raw: pd.DataFrame, fname: str, template_data: Mapping[str, Any]) -> pd.DataFrame:
+    """Return the data rows of a headerless export, labelled ``col N``.
+
+    The data start is the row after the single first-column line matching
+    ``data_start_marker``; ``footer_marker`` then trims the end as usual.
+    Every remaining row must be exactly ``data_row_width`` cells wide (counted
+    to its last non-empty cell), which is the only layout identity a headerless
+    file offers.
+    """
+    marker = template_data.get("data_start_marker")
+    if not marker:
+        raise ValueError("A positional template needs a 'data_start_marker' pattern.")
+    if len(str(marker)) > MAX_NAME_PATTERN_LENGTH:
+        raise ValueError("Data-start marker pattern is too long.")
+    compiled = re.compile(str(marker))
+    first_col = df_raw.iloc[:, 0]
+    hits = [i for i, cell in enumerate(first_col.tolist())
+            if isinstance(cell, str) and compiled.search(cell)]
+    if len(hits) != 1:
+        raise ValueError(
+            f"{fname}: expected exactly one line matching data-start marker "
+            f"{marker!r}, found {len(hits)}; this is not the layout the template describes."
+        )
+    df_data = df_raw.iloc[hits[0] + 1:].copy()
+    df_data.columns = [f"col {i}" for i in range(len(df_raw.columns))]
+
+    footer_marker = template_data.get("footer_marker")
+    if footer_marker:
+        starts = df_data.iloc[:, 0].astype(str).str.strip().str.startswith(footer_marker, na=False)
+        stop = np.where(starts)[0]
+        if len(stop) == 0:
+            raise ValueError(
+                f"{fname}: footer marker {footer_marker!r} not found; the file may be truncated."
+            )
+        df_data = df_data.iloc[:stop[0]]
+    if df_data.empty:
+        raise ValueError(f"{fname}: no data rows between the data-start marker and the footer.")
+
+    expected = template_data.get("data_row_width")
+    if expected is not None:
+        filled = df_data.notna() & ~df_data.astype(str).apply(lambda s: s.str.strip()).isin(["", "nan"])
+        widths = [int(np.flatnonzero(row).max()) + 1 if row.any() else 0 for row in filled.to_numpy()]
+        wrong = [(int(idx), w) for idx, w in zip(df_data.index, widths) if w != int(expected)]
+        if wrong:
+            shown = "; ".join(f"row {r}: {w} cells" for r, w in wrong[:_MAX_REPORTED_BAD_CELLS])
+            raise ValueError(
+                f"{fname}: {len(wrong)} data row(s) are not {expected} cells wide ({shown}); "
+                "the cup/column layout differs from the template."
+            )
+    return df_data
+
+
+def _apply_baseline_subtraction(
+    final_columns: Dict[str, np.ndarray],
+    df_data: pd.DataFrame,
+    baseline_cols: Mapping[str, str],
+    *,
+    fname: str,
+    unit_evidence: Dict[str, Any],
+) -> Tuple[Dict[str, Any], Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+    """Subtract each channel's per-cycle baseline reading.
+
+    Returns ``(audit record, uncorrected signals, baselines)``; the two arrays
+    per isotope are kept so the output can store exactly what was subtracted.
+
+    ``baseline_cols`` maps an extracted isotope target to the source column
+    holding its baseline (zero) reading on the same cycle row. It works the same
+    for header-pinned names (``H5 (Z1) [col 5]``) and positional ``col N``. Every
+    extracted isotope channel must have one, so the output is never a mix of
+    corrected and raw channels, and a baseline missing where the signal exists
+    is an error rather than a silently NaN cycle.
+
+    Units: signal and baseline are each parsed to volts first (``101.5 mV`` and
+    ``0.1015`` are the same value), then subtracted. For a non-ratio channel
+    ``config.input_units.parse_token`` only ever yields V and raises on anything
+    else (counts, ratios, kV), so an unsupported unit stops the file there.
+    """
+    missing = sorted(set(final_columns) - set(baseline_cols))
+    extra = sorted(set(baseline_cols) - set(final_columns))
+    if missing or extra:
+        raise ValueError(
+            f"{fname}: baseline columns must cover exactly the extracted isotope channels "
+            f"(no baseline for: {', '.join(missing) or '-'}; baseline for unmapped/absent: "
+            f"{', '.join(extra) or '-'})."
+        )
+    record: Dict[str, Any] = {
+        "applied": True,
+        "method": "per-cycle on-peak minus baseline column, both in V, applied by the extractor",
+        "channels": {},
+    }
+    uncorrected: Dict[str, np.ndarray] = {}
+    baselines: Dict[str, np.ndarray] = {}
+
+    def units_of(evidence, target):
+        return sorted({(e["source_unit"] or "", e["canonical_unit"] or "", e["status"])
+                       for e in evidence.get(target, [])})
+
+    for target, source in baseline_cols.items():
+        resolved = _resolve_data_column_name(source, list(df_data.columns), fname)
+        if resolved is None:
+            raise ValueError(f"{fname}: baseline column {source!r} for {target} is not present.")
+        # Baseline readings are not output datasets, so their unit evidence stays in
+        # this audit record: the HDF5 reader requires every channel-evidence
+        # entry to match a written dataset.
+        zero_evidence: Dict[str, Any] = {}
+        zero = parse_numeric_column(
+            df_data[resolved], fname=fname, column_label=resolved,
+            target_name=target, ratio=False, evidence=zero_evidence,
+        )
+        zero_units = units_of(zero_evidence, target)
+        signal_units = units_of(unit_evidence, target)
+        signal = final_columns[target]
+        bad = np.isfinite(signal) & ~np.isfinite(zero)
+        if bad.any():
+            raise ValueError(
+                f"{fname}: baseline column {source!r} for {target} is empty or non-numeric on "
+                f"{int(bad.sum())} cycle(s) that carry a signal."
+            )
+        uncorrected[target] = signal.copy()
+        baselines[target] = zero.copy()
+        final_columns[target] = signal - zero
+        finite = zero[np.isfinite(zero)]
+        record["channels"][target] = {
+            "baseline_source": source,
+            "baseline_mean_V": float(finite.mean()) if finite.size else None,
+            "baseline_min_V": float(finite.min()) if finite.size else None,
+            "baseline_max_V": float(finite.max()) if finite.size else None,
+            "signal_input_units": [list(u) for u in signal_units],
+            "baseline_input_units": [list(u) for u in zero_units],
+        }
+    return record, uncorrected, baselines
+
+
+# Nu Plasma II headers name each Faraday reading "<cup> (<block>)" and its
+# zero "<cup> (Z<block>)", e.g. "H5 (1)" and "H5 (Z1)".
+_SIGNAL_LABEL = re.compile(r"^(?P<cup>.+?)\s*\((?P<block>\d+)\)$")
+
+
+def suggest_baseline_cols(
+    columns: List[str],
+    isotope_cols: Mapping[str, str],
+    existing: Optional[Mapping[str, str]] = None,
+) -> Tuple[Dict[str, str], List[str]]:
+    """Propose ``{isotope target: baseline source}`` pairs for review.
+
+    Header labels pair by cup name: ``H5 (1) [col 26]`` -> ``H5 (Z1) [col 5]``
+    when exactly one such column exists. Positional ``col N`` sources pair by
+    the column offset of a pair the user already made (classic Nu: zero col i,
+    signal col 19+i), because a headerless file carries no names to match.
+    Returns ``(pairs, notes)``; existing pairs are kept and never overwritten.
+    Nothing is applied here: the caller shows the proposal for confirmation.
+    """
+    existing = dict(existing or {})
+    pairs: Dict[str, str] = dict(existing)
+    notes: List[str] = []
+    by_base: Dict[str, List[str]] = {}
+    for label in columns:
+        by_base.setdefault(base_column_name(label), []).append(label)
+
+    offsets = set()
+    for target, base_src in existing.items():
+        src = next((s for s, t in isotope_cols.items() if t == target), None)
+        a = POSITIONAL_COLUMN_PATTERN.fullmatch(str(src or ""))
+        b = POSITIONAL_COLUMN_PATTERN.fullmatch(str(base_src))
+        if a and b:
+            offsets.add(int(a.group("index")) - int(b.group("index")))
+
+    for source, target in isotope_cols.items():
+        if target in pairs:
+            continue
+        positional = POSITIONAL_COLUMN_PATTERN.fullmatch(str(source))
+        if positional:
+            if len(offsets) != 1:
+                notes.append(
+                    f"{target}: map one baseline by hand first, so the column offset "
+                    "can be learned" if not offsets else
+                    f"{target}: existing pairs use different offsets {sorted(offsets)}; not guessing"
+                )
+                continue
+            index = int(positional.group("index")) - next(iter(offsets))
+            candidate = f"col {index}"
+            if index < 0 or candidate not in columns:
+                notes.append(f"{target}: offset points to {candidate}, which does not exist")
+                continue
+            pairs[target] = candidate
+            continue
+        match = _SIGNAL_LABEL.fullmatch(base_column_name(source))
+        if not match:
+            notes.append(f"{target}: {source!r} is not a '<cup> (<block>)' label")
+            continue
+        wanted = f"{match.group('cup')} (Z{match.group('block')})"
+        found = by_base.get(wanted, [])
+        if len(found) != 1:
+            notes.append(f"{target}: {len(found)} column(s) named {wanted!r}")
+            continue
+        pairs[target] = found[0]
+    return pairs, notes
+
+
+def derive_positional_layout(df_raw: pd.DataFrame, first_data_row: int) -> Dict[str, Any]:
+    """Describe a headerless block whose first data row the user selected.
+
+    Returns ``data_start_marker`` (a pattern built from the line just above,
+    which must be text and unique in the file), ``footer_marker`` (the first
+    text line after the numeric block) and ``data_row_width`` (the width every
+    data row shares). Raises ValueError when the file does not support a
+    positional reading, rather than producing guard values that guard nothing.
+    """
+    def is_number(value):
+        text = str(value).strip()
+        if text.lower() in ("", "nan"):
+            return False
+        try:
+            float(text)
+            return True
+        except ValueError:
+            return False
+
+    if not 0 < first_data_row < len(df_raw):
+        raise ValueError("Select a data row that has a line above it.")
+    above = df_raw.iloc[first_data_row - 1, 0]
+    # Mixed columns load as strings, so a number in the line above is still a str.
+    if not isinstance(above, str) or not above.strip() or is_number(above):
+        raise ValueError("The line above the data must be text (e.g. 'Sample Name is ...').")
+    if not is_number(df_raw.iloc[first_data_row, 0]):
+        raise ValueError("The selected row does not start with a number; select the first data row.")
+    # Keep the label, drop the per-file value: text before a run of 2+ spaces,
+    # a tab, a colon or '=' (e.g. 'Sample Name is   SRM987' -> 'Sample Name is').
+    label = re.split(r"\s{2,}|\t|:|=", above.strip(), maxsplit=1)[0].strip()
+    if not label:
+        raise ValueError("Could not take a label from the line above the data.")
+    # Spaces need no escaping; leaving them readable keeps saved templates legible.
+    marker = "^" + re.escape(label).replace("\\ ", " ") + r"\b"
+    compiled = re.compile(marker)
+    first_col = df_raw.iloc[:, 0].tolist()
+    hits = [i for i, v in enumerate(first_col) if isinstance(v, str) and compiled.search(v)]
+    if hits != [first_data_row - 1]:
+        raise ValueError(f"The line {label!r} is not unique in this file; cannot anchor the data on it.")
+
+    footer_row = next((i for i in range(first_data_row, len(df_raw)) if not is_number(first_col[i])), None)
+    if footer_row is None or footer_row == first_data_row:
+        raise ValueError("No numeric data block followed by a text footer line was found.")
+    footer = str(first_col[footer_row]).strip()
+    block = df_raw.iloc[first_data_row:footer_row]
+    filled = block.notna() & ~block.astype(str).apply(lambda s: s.str.strip()).isin(["", "nan"])
+    widths = {int(np.flatnonzero(row).max()) + 1 for row in filled.to_numpy() if row.any()}
+    if len(widths) != 1:
+        raise ValueError(f"Data rows have different widths {sorted(widths)}; not a fixed layout.")
+    return {"layout": POSITIONAL_LAYOUT, "data_start_marker": marker,
+            "footer_marker": footer, "data_row_width": widths.pop()}
+
+
 def extract_sample_data(fpath: str, template_data: Dict) -> ExtractedSample:
     """
     Extracts metadata and tabular data from a file according to the mapping template.
@@ -591,17 +909,39 @@ def extract_sample_data(fpath: str, template_data: Dict) -> ExtractedSample:
     extracted_meta['source_sha1_legacy'] = df_raw.attrs.get('source_sha1', '')
 
 
-    if header_idx >= len(df_raw):
-        raise ValueError(f"Header row {header_idx} is out of bounds for file {fname}.")
+    positional = template_data.get("layout") == POSITIONAL_LAYOUT
+    if positional:
+        sources = list(iso_cols) + list(ratio_cols) + [
+            c for c in (time_col_name, cycle_col_name) if c
+        ] + list((template_data.get("baseline_cols") or {}).values())
+        bad = [s for s in sources if not POSITIONAL_COLUMN_PATTERN.fullmatch(str(s).strip())]
+        if bad:
+            raise ValueError(
+                f"Positional template columns must be named 'col N'; got {', '.join(map(repr, bad))}."
+            )
+        if template_data.get("footer_row_idx") is not None:
+            raise ValueError(
+                "A headerless (positional) template ends each file's data at its footer "
+                "marker; a fixed footer_row_idx would be ignored, so it is refused. "
+                "Remove footer_row_idx from the template."
+            )
+        df_data = _positional_data_block(df_raw, fname, template_data)
+        footer_row_idx = None
+        footer_marker = None  # already applied by _positional_data_block
+    else:
+        if header_idx >= len(df_raw):
+            raise ValueError(f"Header row {header_idx} is out of bounds for file {fname}.")
 
-    header_values = df_raw.iloc[header_idx].astype(str).tolist()
-    column_labels = disambiguate_header_values(header_values)
+        # Raw values, as the window reads them: astype(str) would turn an
+        # empty cell into the name 'None'.
+        header_values = df_raw.iloc[header_idx].tolist()
+        column_labels = disambiguate_header_values(header_values)
 
-    df_data = df_raw.iloc[header_idx+1:].copy()
-    df_data.columns = column_labels
+        df_data = df_raw.iloc[header_idx+1:].copy()
+        df_data.columns = column_labels
+        footer_row_idx = template_data.get("footer_row_idx")
 
     # Footer slicing
-    footer_row_idx = template_data.get("footer_row_idx")
     if footer_row_idx is not None:
          nrows = footer_row_idx - header_idx - 1
          if nrows > 0:
@@ -663,6 +1003,38 @@ def extract_sample_data(fpath: str, template_data: Dict) -> ExtractedSample:
             logger.warning(message)
             extraction_warnings.append(message)
 
+    baseline_cols = dict(template_data.get("baseline_cols") or {})
+    baseline_enabled = baseline_subtraction_enabled(template_data)
+    uncorrected_data: Dict[str, np.ndarray] = {}
+    baseline_data: Dict[str, np.ndarray] = {}
+    if baseline_enabled:
+        if not baseline_cols:
+            raise ValueError(
+                "Baseline subtraction is switched on but no baseline columns are assigned."
+            )
+        if template_data.get("intensity_baseline_corrected") is False:
+            raise ValueError(
+                "Template both maps baseline columns and declares the intensities "
+                "not baseline corrected; remove one of the two."
+            )
+        if ratio_cols:
+            raise ValueError("Baseline subtraction applies to isotope channels only; remove ratio_cols.")
+        iso_only = {t: v for t, v in final_columns.items()}
+        record, uncorrected_data, baseline_data = _apply_baseline_subtraction(
+            iso_only, df_data, baseline_cols, fname=fname, unit_evidence=unit_evidence,
+        )
+        extracted_meta["baseline_correction"] = record
+        final_columns.update(iso_only)
+        # Source-state metadata now describes what the extractor wrote.
+        extracted_meta["intensity_baseline_corrected"] = True
+    else:
+        # Off (or nothing assigned): values are exported as read. Assignments
+        # stay in the template, and the output says plainly that the extractor
+        # subtracted nothing.
+        extracted_meta["baseline_correction"] = {"applied": False}
+        if baseline_cols:
+            extracted_meta["baseline_correction"]["assignments_kept"] = baseline_cols
+
     df_final = pd.DataFrame(final_columns)
 
 
@@ -705,7 +1077,24 @@ def extract_sample_data(fpath: str, template_data: Dict) -> ExtractedSample:
         cycle_data=c_vals,
         warnings=extraction_warnings,
         unit_evidence=unit_evidence,
+        uncorrected_data=uncorrected_data,
+        baseline_data=baseline_data,
     )
+
+
+def baseline_subtraction_enabled(template_data: Mapping[str, Any]) -> bool:
+    """Whether a template asks for baseline subtraction.
+
+    ``baseline_enabled`` switches subtraction on or off while the assignments in
+    ``baseline_cols`` are kept. Templates written before the switch existed
+    have no key; for them, assigning baselines meant subtracting them.
+    """
+    if "baseline_enabled" in template_data:
+        value = template_data["baseline_enabled"]
+        if type(value) is not bool:
+            raise ValueError("baseline_enabled must be true or false.")
+        return value
+    return bool(template_data.get("baseline_cols"))
 
 
 def write_sample_to_hdf5(f: h5py.File, sample: ExtractedSample, template_data: Dict):
@@ -780,6 +1169,17 @@ def write_sample_to_hdf5(f: h5py.File, sample: ExtractedSample, template_data: D
                     dataset = rat_grp.create_dataset(target_name.strip().replace("/", "_"), data=arr)
                     dataset.attrs["units"] = "dimensionless"
                     dataset.attrs["unit_contract"] = UNIT_CONTRACT
+
+        # What was subtracted, cycle by cycle: kept outside 'intensities' so the
+        # reader never mistakes a raw or baseline array for a measured channel.
+        if sample.baseline_data:
+            audit = grp.create_group("baseline_correction")
+            audit.attrs["method"] = "per-cycle signal minus baseline, both in V"
+            for isotope, baseline in sample.baseline_data.items():
+                channel = audit.create_group(isotope)
+                for label, values in (("uncorrected", sample.uncorrected_data[isotope]),
+                                      ("baseline", baseline)):
+                    channel.create_dataset(label, data=values).attrs["units"] = "V"
     except BaseException:
         try:
             if grp_name in f:
@@ -1233,7 +1633,7 @@ def process_batch(
             # Write accumulated provenance after all files are processed
             if template_data.get("include_audit_metadata", True):
                 f.attrs["provenance_json"] = json.dumps({
-                    "writer": "neptune_data_extractor",
+                    "writer": "data_extractor",
                     "created_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
                     "warnings": _prov_warnings,
                     "nan_fractions": _prov_nan_fractions,

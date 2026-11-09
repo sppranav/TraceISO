@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QPainter, QPen
 from PyQt5.QtWidgets import QWidget
 
-from tools.neptune_data_extractor.ui import theme
+from tools.data_extractor.ui import theme
 
 
 class StepperWidget(QWidget):

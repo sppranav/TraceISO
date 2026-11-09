@@ -7,7 +7,7 @@ the UI and the test suite exercise the same code path.
 
 from PyQt5.QtCore import QThread, pyqtSignal
 
-from tools.neptune_data_extractor.mapper_logic import (
+from tools.data_extractor.mapper_logic import (
     BatchOutcome,
     freeze_template_data,
     pre_flight_validation,

@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QColor, QPixmap, QPainter, QIcon, QFont, QPen
 
-from tools.neptune_data_extractor.ui import theme
+from tools.data_extractor.ui import theme
 
 
 def _reveal_label() -> str:

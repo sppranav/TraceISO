@@ -13,4 +13,5 @@ HL = {
     "ratio": ("#f1e9fc", "#6a37bf"),
     "time": ("#fdf3de", "#9a6a10"),
     "footer": ("#f5f6f8", "#aeb6c0"),
+    "zero": ("#fdecea", "#a8321f"),   # per-cycle zero readings subtracted from an isotope
 }

@@ -160,7 +160,7 @@ _DESKTOP_TOOLS = (
         "(config/crm_library.json).",
     ),
     (
-        "tools.neptune_data_extractor.main",
+        "tools.data_extractor.main",
         "Data Extractor",
         "Open the desktop tool for extracting supported instrument data into TraceISO HDF5.",
     ),

@@ -377,7 +377,7 @@ From Terminal, the equivalent commands are:
 ```bash
 source venv/bin/activate
 python -m tools.crm_manager                  # CRM Library Manager
-python -m tools.neptune_data_extractor.main  # Data Extractor
+python -m tools.data_extractor.main          # Data Extractor
 python -m tools.global_uncertainty_manager   # Global Uncertainty Manager
 ```
 
@@ -464,7 +464,13 @@ where its semantics permit conversion. Blank uncertainty remains different from 
 
 In Data Extractor, choose a built-in template or Custom Mapping, use the
 visible mapping controls, and undo/redo mapping changes with Ctrl+Z/Ctrl+Shift+Z.
-File/template changes start a new history. Sample-naming presets preview filename
+File/template changes start a new history. Selecting cells chooses columns only;
+the exported rows run from the header (or, for files without a header row, the
+line chosen with **No Header – Data Starts Here**) to the footer, and change only
+through **Set as Data Start Row** / **Set as Footer Start Row**. To subtract
+baselines, tick **Subtract baselines**, then right-click cells of a baseline column
+and choose **Map 1 Selected Column as Baseline of ▸** the isotope; the output
+records whether subtraction was applied. Sample-naming presets preview filename
 rules; mapped Sample Name cells can override them. **Convert All N Files** and
 **Convert Selected** explicitly choose the batch scope. Cancel works during validation
 and conversion. **Results** retains per-file statuses and complete diagnostics, with
