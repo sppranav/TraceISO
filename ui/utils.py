@@ -207,11 +207,13 @@ def _format_delta_ratio_label(ratio_name: str) -> str:
 
 
 def _format_delta_ratio_html(ratio_name: str) -> str:
+    """Return e.g. '<sup>7/6</sup>Li': the whole mass pair, slash included,
+    is superscripted, as in the conventional δ<sup>7/6</sup>Li notation."""
     numerator, separator, denominator = str(ratio_name).partition("/")
     num = _split_isotope_token(numerator)
     den = _split_isotope_token(denominator) if separator else None
     if num and den and num[1] == den[1]:
-        return f"<sup>{num[0]}</sup>/<sup>{den[0]}</sup>{num[1]}"
+        return f"<sup>{num[0]}/{den[0]}</sup>{num[1]}"
     return format_name(str(ratio_name))
 
 

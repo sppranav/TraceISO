@@ -32,7 +32,6 @@ from ui.config_plotly import (
     PLOTLY_AXIS_TITLE_FONT_SIZE,
     PLOTLY_BASE_FONT_SIZE,
     PLOTLY_LEGEND_FONT_SIZE,
-    PLOTLY_TITLE_FONT_SIZE,
 )
 from ui.theme import get_theme
 from ui.utils import format_delta_html, format_name, get_cycle_ranges, get_sample_state_key
@@ -41,7 +40,6 @@ from ui.utils import format_delta_html, format_name, get_cycle_ranges, get_sampl
 _MC_HISTOGRAM_HEIGHT = 520
 _MC_TICK_FONT_SIZE = PLOTLY_BASE_FONT_SIZE + 4
 _MC_AXIS_TITLE_FONT_SIZE = PLOTLY_AXIS_TITLE_FONT_SIZE + 5
-_MC_TITLE_FONT_SIZE = PLOTLY_TITLE_FONT_SIZE + 1
 _MC_LEGEND_FONT_SIZE = PLOTLY_LEGEND_FONT_SIZE + 4
 _MC_ANNOTATION_FONT_SIZE = PLOTLY_ANNOTATION_FONT_SIZE + 1
 
@@ -1349,14 +1347,15 @@ def _build_mc_histogram_figure(
     else:
         x_axis_title = "Delta value (‰)" if is_delta else "Ratio value"
 
+    # No in-figure title: the enclosing "Monte Carlo cross-check" panel names
+    # the plot in the app, and a downloaded image should carry only the plot
+    # so the manuscript caption can describe it.
     fig.update_layout(
-        title="Monte Carlo cross-check" if getattr(mc, "semantics_version", "") else None,
         xaxis_title=x_axis_title,
         yaxis_title="Density",
         height=_MC_HISTOGRAM_HEIGHT,
-        margin=dict(l=80, r=80, t=60, b=70),
+        margin=dict(l=80, r=80, t=20, b=70),
         showlegend=True,
-        title_font=dict(size=_MC_TITLE_FONT_SIZE),
         legend=dict(
             orientation="v",
             yanchor="top",
