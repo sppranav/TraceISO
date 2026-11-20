@@ -194,7 +194,7 @@ Use **CRM Manager** to view and edit certified or assigned reference values, iso
 - **Summary** — session and processing information.
 - **Results** — isotope ratios, delta values and available uncertainties.
 - **Budget_Detail** — uncertainty contributions; enabled by default when suitable budgets are available.
-- **Cycle_Data** — one combined sheet of cycle measurements; optional and off by default.
+- **Cycle_Data** — all recorded observations and intensity channels, with per-cycle values and status for selected ratios; optional and off by default.
 
 Columns adapt to the selected isotope ratios and corrections. Sr internal-normalisation and Pb–Tl workflows use dedicated reports with the same main sheet names. Other processing modes offer **Diagnostic** and **Analyst report** layouts.
 

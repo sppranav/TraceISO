@@ -19,7 +19,7 @@ def render_group_publication_controls(groups, ratio, *, delta_enabled, run_order
 
     settings = st.session_state[GROUPS_KEY].setdefault("publication", {})
     with st.expander("Publication sizing, axes and references", expanded=False):
-        st.caption("These settings apply only to the grouped figures. Physical dimensions and type sizes apply to the enlarged export view.")
+        st.caption("These settings apply only to the grouped figures. Physical dimensions and type sizes apply to the displayed plots and their downloads.")
         cols = st.columns(3)
         with cols[0]:
             _number(settings, "width_mm", "Figure width (mm)", "group_pub", 90.0, min_value=50.0, max_value=300.0, step=5.0)

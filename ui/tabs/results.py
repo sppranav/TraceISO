@@ -84,13 +84,21 @@ def _apply_results_plot_sizing(fig, theme, *, profile: Literal["screen", "export
             trace.marker.size = marker_size
 
 
-def _build_results_export_figure(fig, theme, *, height: int):
+def _build_results_export_figure(fig, theme, *, height: int, precision_export: bool = False):
     """Return a publication-styled copy; never mutate the on-screen figure."""
     import plotly.graph_objects as go
 
     export_fig = go.Figure(fig)
     export_fig.update_layout(height=height)
     _apply_results_plot_sizing(export_fig, theme, profile="export")
+    if precision_export:
+        # Balance sample labels and numerical ticks against the RSD title.
+        export_fig.update_xaxes(
+            tickfont_size=22, title_text="Sample ID", title_font_size=23, automargin=True,
+        )
+        export_fig.update_yaxes(tickfont_size=22, title_font_size=23, automargin=True)
+        export_fig.update_annotations(font_size=22)
+        export_fig.update_layout(title_font_size=20)
     return export_fig
 
 
@@ -104,31 +112,44 @@ def _render_results_figure(
     export_width: int,
     export_height: int,
     publication=None,
+    precision_export: bool = False,
+    single_view: bool = False,
+    outside_title: Optional[str] = None,
 ) -> None:
-    """Render the compact screen figure and an opt-in enlarged export figure."""
+    """Render one publication plot, or the compact/enlarged pair for other views."""
     from ui.config_plotly import get_plotly_config
 
-    _apply_results_plot_sizing(fig, theme, profile="screen")
-    screen_config = get_plotly_config(filename, width=export_width, height=export_height)
-    screen_config["modeBarButtonsToRemove"] = [
-        *screen_config["modeBarButtonsToRemove"],
-        "toImage",
-    ]
-    st.plotly_chart(
-        fig,
-        width="stretch",
-        height=display_height,
-        key=key,
-        config=screen_config,
-    )
-    if st.checkbox(
-        "Enlarged export view",
-        value=False,
-        key=f"{key}_export_view",
-        help="Open the independently styled publication figure; use its camera button for PNG or SVG.",
-    ):
-        export_fig = _build_results_export_figure(fig, theme, height=export_height)
+    show_export = single_view
+    if not single_view:
+        _apply_results_plot_sizing(fig, theme, profile="screen")
+        screen_config = get_plotly_config(filename, width=export_width, height=export_height)
+        screen_config["modeBarButtonsToRemove"] = [
+            *screen_config["modeBarButtonsToRemove"],
+            "toImage",
+        ]
+        st.plotly_chart(
+            fig,
+            width="stretch",
+            height=display_height,
+            key=key,
+            config=screen_config,
+        )
+        show_export = st.checkbox(
+            "Enlarged export view",
+            value=False,
+            key=f"{key}_export_view",
+            help="Open the independently styled publication figure; use its camera button for PNG or SVG.",
+        )
+    if show_export:
+        export_fig = _build_results_export_figure(
+            fig, theme, height=export_height, precision_export=precision_export,
+        )
         export_config = get_plotly_config(filename, width=export_width, height=export_height)
+        if single_view:
+            export_fig.update_layout(font_size=28, title_font_size=28, legend_font_size=26)
+            export_fig.update_xaxes(tickfont_size=28, title_font_size=32, automargin=True)
+            export_fig.update_yaxes(tickfont_size=28, title_font_size=32, automargin=True)
+            export_fig.update_annotations(font_size=24)
         if publication is not None:
             from ui.components.group_plot_publication import apply_publication_sizing
             apply_publication_sizing(export_fig, publication)
@@ -136,11 +157,14 @@ def _render_results_figure(
                 width=export_fig.layout.width, height=export_fig.layout.height)
             if publication["format"] == "png":
                 export_config["toImageButtonOptions"]["scale"] = publication["dpi"] / 96
+        if outside_title is not None:
+            st.markdown(f"**{outside_title}**")
+            export_fig.update_layout(title_text="")
         st.plotly_chart(
             export_fig,
             width=export_fig.layout.width if publication else "stretch",
             height=export_fig.layout.height if publication else _RESULTS_ENLARGED_DISPLAY_HEIGHT,
-            key=f"{key}_export",
+            key=key if single_view else f"{key}_export",
             config=export_config,
         )
 
@@ -1305,6 +1329,7 @@ def _render_rsd_comparison(
         theme=get_theme(),
         key=f"dist_rsd_{ratio_name}",
         filename=f"traceiso_{ratio_name.replace('/', '-')}_precision",
+        precision_export=True,
         display_height=int(fig.layout.height or _RESULTS_OVERVIEW_DISPLAY_HEIGHT),
         export_width=_OVERVIEW_PLOT_EXPORT_WIDTH,
         export_height=_OVERVIEW_PLOT_EXPORT_HEIGHT,
@@ -1534,6 +1559,8 @@ def _render_summary_plot_section(
             export_width=_SELECTED_PLOT_EXPORT_WIDTH,
             export_height=_SELECTED_PLOT_EXPORT_HEIGHT,
             publication=publication if grouped else None,
+            single_view=True,
+            outside_title=format_isotope_label(plot_ratio),
         )
 
     render_ratio(plot_samples, ratio_metrics)
@@ -1595,6 +1622,8 @@ def _render_summary_plot_section(
                 export_width=_SELECTED_PLOT_EXPORT_WIDTH,
                 export_height=_SELECTED_PLOT_EXPORT_HEIGHT,
                 publication=publication if grouped else None,
+                single_view=True,
+                outside_title=format_delta_label(plot_ratio, reference=_delta_reference_name(state)),
             )
 
         render_delta(plot_samples)

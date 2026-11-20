@@ -26,22 +26,16 @@ from ui.formatting import (
     format_mc_summary_rows,
     format_uncertainty,
 )
-from ui.config_plotly import (
-    get_plotly_config,
-    PLOTLY_ANNOTATION_FONT_SIZE,
-    PLOTLY_AXIS_TITLE_FONT_SIZE,
-    PLOTLY_BASE_FONT_SIZE,
-    PLOTLY_LEGEND_FONT_SIZE,
-)
+from ui.config_plotly import get_plotly_config
 from ui.theme import get_theme
 from ui.utils import format_delta_html, format_name, get_cycle_ranges, get_sample_state_key
 
 
 _MC_HISTOGRAM_HEIGHT = 520
-_MC_TICK_FONT_SIZE = PLOTLY_BASE_FONT_SIZE + 4
-_MC_AXIS_TITLE_FONT_SIZE = PLOTLY_AXIS_TITLE_FONT_SIZE + 5
-_MC_LEGEND_FONT_SIZE = PLOTLY_LEGEND_FONT_SIZE + 4
-_MC_ANNOTATION_FONT_SIZE = PLOTLY_ANNOTATION_FONT_SIZE + 1
+_MC_TICK_FONT_SIZE = 22
+_MC_AXIS_TITLE_FONT_SIZE = 23
+_MC_LEGEND_FONT_SIZE = 22
+_MC_ANNOTATION_FONT_SIZE = 22
 
 
 def _deterministic_mc_seed(token: object) -> int:
@@ -1178,7 +1172,7 @@ def _render_mc_histogram(
     ratio_name: Optional[str] = None,
     coverage_factor_k: Optional[float] = None,
 ) -> None:
-    """Render a schematic histogram of the MC distribution using normal approximation."""
+    """Render one publication-styled MC figure for display and download."""
     fig = _build_mc_histogram_figure(
         mc_result,
         ratio_mean,
@@ -1186,7 +1180,58 @@ def _render_mc_histogram(
         ratio_name=ratio_name,
         coverage_factor_k=coverage_factor_k,
     )
-    st.plotly_chart(fig, width="stretch", config=get_plotly_config())
+    fig = _build_mc_export_figure(fig)
+    st.markdown("**Monte Carlo cross-check**")
+    st.plotly_chart(
+        fig,
+        width="stretch",
+        config=get_plotly_config(width=1400, height=850),
+    )
+
+
+def _build_mc_export_figure(fig):
+    """Enlarge text while preserving the wide chart and in-plot legend."""
+    import plotly.graph_objects as go
+
+    export_fig = go.Figure(fig)
+    export_fig.update_layout(
+        width=1400,
+        height=850,
+        margin=dict(l=140, r=50, t=50, b=120),
+        font_size=32,
+        legend=dict(
+            orientation="v", x=0.02, xanchor="left", y=0.98, yanchor="top",
+            font_size=28,
+        ),
+    )
+    export_fig.update_xaxes(
+        tickfont_size=32, title_font_size=36, title_standoff=20,
+        tickangle=0, nticks=5, automargin=True,
+    )
+    export_fig.update_yaxes(
+        tickfont_size=32, title_font_size=36, title_standoff=20,
+        nticks=5, automargin=True,
+    )
+    export_fig.update_annotations(
+        font_size=28, x=0.98, y=0.96, xanchor="right", yanchor="top",
+    )
+    # Choose explicit, readable intervals; Plotly's nticks cap can leave only
+    # two labelled ticks when a delta distribution spans a few units.
+    def tick_step(span, intervals):
+        base = 10.0 ** np.floor(np.log10(span / intervals))
+        return next(m * base for m in (1, 2, 2.5, 5, 10) if m * base >= span / intervals)
+
+    x_values = np.concatenate([
+        np.asarray(trace.x, dtype=float) for trace in export_fig.data
+        if trace.x is not None
+    ])
+    finite_x = x_values[np.isfinite(x_values)]
+    if finite_x.size > 1 and np.ptp(finite_x) > 0:
+        export_fig.update_xaxes(tickmode="linear", tick0=0, dtick=tick_step(np.ptp(finite_x), 6))
+    y_range = export_fig.layout.yaxis.range
+    if y_range is not None and y_range[1] > y_range[0]:
+        export_fig.update_yaxes(tickmode="linear", tick0=0, dtick=tick_step(y_range[1] - y_range[0], 7))
+    return export_fig
 
 
 def _build_mc_histogram_figure(
@@ -1351,6 +1396,7 @@ def _build_mc_histogram_figure(
     # the plot in the app, and a downloaded image should carry only the plot
     # so the manuscript caption can describe it.
     fig.update_layout(
+        title=dict(text=""),
         xaxis_title=x_axis_title,
         yaxis_title="Density",
         height=_MC_HISTOGRAM_HEIGHT,
@@ -1374,6 +1420,7 @@ def _build_mc_histogram_figure(
         showline=True,
         tickfont=dict(size=_MC_TICK_FONT_SIZE),
         title_font=dict(size=_MC_AXIS_TITLE_FONT_SIZE),
+        automargin=True,
     )
     fig.update_yaxes(
         range=[0, y_top],
@@ -1382,6 +1429,7 @@ def _build_mc_histogram_figure(
         showline=True,
         tickfont=dict(size=_MC_TICK_FONT_SIZE),
         title_font=dict(size=_MC_AXIS_TITLE_FONT_SIZE),
+        automargin=True,
     )
 
     theme.apply_to_figure(fig, profile="distribution")

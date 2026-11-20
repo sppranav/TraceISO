@@ -37,13 +37,7 @@ from ui.components.workspace_ui import (
 )
 from ui.components.intensity_plot import create_single_isotope_plot
 from ui.components.ratio_plot import create_single_ratio_plot, create_delta_cycle_plot
-from ui.config_plotly import (
-    PLOTLY_ANNOTATION_FONT_SIZE,
-    PLOTLY_AXIS_TITLE_FONT_SIZE,
-    PLOTLY_BASE_FONT_SIZE,
-    PLOTLY_TITLE_FONT_SIZE,
-    get_plotly_config,
-)
+from ui.config_plotly import get_plotly_config
 from ui.runtime_budget_cache import get_cached_runtime_budget
 from ui.utils import (
     clamp_cycle_range,
@@ -62,14 +56,13 @@ from ui.formatting import (
 )
 
 
-_INSPECTOR_PLOT_TICK_FONT_SIZE = PLOTLY_BASE_FONT_SIZE + 3
-_INSPECTOR_PLOT_AXIS_TITLE_FONT_SIZE = PLOTLY_AXIS_TITLE_FONT_SIZE + 4
-_INSPECTOR_PLOT_TITLE_FONT_SIZE = PLOTLY_TITLE_FONT_SIZE + 3
-_INSPECTOR_PLOT_LEGEND_FONT_SIZE = PLOTLY_BASE_FONT_SIZE + 1
-_INSPECTOR_PLOT_ANNOTATION_FONT_SIZE = PLOTLY_ANNOTATION_FONT_SIZE + 3
+_INSPECTOR_PLOT_TICK_FONT_SIZE = 28
+_INSPECTOR_PLOT_AXIS_TITLE_FONT_SIZE = 32
+_INSPECTOR_PLOT_TITLE_FONT_SIZE = 23
+_INSPECTOR_PLOT_LEGEND_FONT_SIZE = 26
+_INSPECTOR_PLOT_ANNOTATION_FONT_SIZE = 24
 _INSPECTOR_PLOT_EXPORT_WIDTH = 1200
-_INSPECTOR_PLOT_EXPORT_HEIGHT = 700
-_INSPECTOR_LEGEND_TOP_MARGIN = 210
+_INSPECTOR_PLOT_EXPORT_HEIGHT = 800
 
 
 def _get_cycle_ranges() -> dict:
@@ -571,12 +564,21 @@ def render_inspector_tab() -> None:
         render_plot_display_options()
 
     # The two diagnostics sit side by side on wide workspaces and stack when
-    # width is limited. The ratio chart explicitly uses responsive sizing so its
-    # interactive wrapper fills its column. Ratio tick labels carry more decimal
-    # places and therefore consume more internal left margin; a slight width
-    # bias keeps the visible plot frames approximately equal.
+    # width is limited. Prepare both before rendering so equal columns share
+    # the same frame height and legend space, including optional ratio guides.
+    intensity_fig = (
+        _build_inspector_intensity_figure(
+            sample, state.display_config, selected_isotope, selected_ratio, cycle_range,
+        )
+        if sample.intensities and selected_isotope else None
+    )
+    ratio_fig = (
+        _build_inspector_ratio_figure(sample, state.display_config, selected_ratio, cycle_range)
+        if sample.ratios and selected_ratio else None
+    )
+    _align_inspector_plot_pair(intensity_fig, ratio_fig)
     with st.container(key="inspector_plots"):
-        col1, col2 = st.columns([0.48, 0.52])
+        col1, col2 = st.columns([0.5, 0.5])
     with col1:
         _render_intensity_section(
             sample,
@@ -584,6 +586,7 @@ def render_inspector_tab() -> None:
             selected_isotope,
             selected_ratio,
             cycle_range,
+            prepared_figure=intensity_fig,
         )
     with col2:
         _render_ratio_section(
@@ -592,6 +595,7 @@ def render_inspector_tab() -> None:
             selected_ratio,
             cycle_range,
             manual_exclusion_mode=manual_exclusion_mode,
+            prepared_figure=ratio_fig,
         )
 
     runtime_delta = None
@@ -738,15 +742,36 @@ def _hide_plot_grids(fig):
     return fig
 
 
-def _apply_inspector_plot_sizing(fig) -> None:
+def _apply_inspector_plot_sizing(fig, *, external_title: bool = False) -> None:
     """Apply consistent screen and export sizing to Inspector figures."""
-    if fig.layout.legend.orientation == "h":
+    if external_title:
+        fig.update_layout(title_text="")
+        legend_rows = sum(
+            1 for trace in fig.data
+            if trace.name and trace.showlegend is not False and trace.visible is not False
+        ) if fig.layout.showlegend is not False else 0
+        top_margin = 24 + 38 * legend_rows
+        height = max(float(fig.layout.height or 550), top_margin + 90 + 360)
+        fig.update_layout(
+            height=height,
+            margin=dict(l=180, r=30, t=top_margin, b=90, autoexpand=False),
+            legend=dict(
+                # One column in the paired view; two at the 1200 px download
+                # width, without needing a separate export-only figure.
+                orientation="h", entrywidth=420, entrywidthmode="pixels",
+                x=0, xanchor="left",
+                yref="paper", y=1 + 12 / (height - top_margin - 90),
+                yanchor="bottom",
+            ),
+        )
+        fig.layout.legend.maxheight = None
+    elif fig.layout.legend.orientation == "h":
         # Ratio layers and their statistical guides can require four or more
         # legend rows. Reserve a fixed header rather than constraining the
         # legend's height, which clips later rows behind the plot frame.
         # The legend bottom still remains 12 px above the frame.
         plot_area_height = max(
-            float(fig.layout.height or 550) - _INSPECTOR_LEGEND_TOP_MARGIN - 85,
+            float(fig.layout.height or 550) - 210 - 85,
             1,
         )
         fig.update_layout(
@@ -755,7 +780,7 @@ def _apply_inspector_plot_sizing(fig) -> None:
                 yref="paper", y=1 + 12 / plot_area_height, yanchor="bottom",
             ),
             title=dict(y=0.99, yanchor="top", yref="container"),
-            margin=dict(t=_INSPECTOR_LEGEND_TOP_MARGIN, b=85, autoexpand=False),
+            margin=dict(t=210, b=85, autoexpand=False),
         )
         fig.layout.legend.maxheight = None
     fig.update_layout(
@@ -767,12 +792,76 @@ def _apply_inspector_plot_sizing(fig) -> None:
     fig.update_xaxes(
         tickfont=dict(size=_INSPECTOR_PLOT_TICK_FONT_SIZE),
         title_font=dict(size=_INSPECTOR_PLOT_AXIS_TITLE_FONT_SIZE),
+        title_standoff=20,
+        automargin=True,
     )
     fig.update_yaxes(
         tickfont=dict(size=_INSPECTOR_PLOT_TICK_FONT_SIZE),
         title_font=dict(size=_INSPECTOR_PLOT_AXIS_TITLE_FONT_SIZE),
+        title_standoff=20,
+        automargin=True,
     )
     fig.update_annotations(font=dict(size=_INSPECTOR_PLOT_ANNOTATION_FONT_SIZE))
+
+
+def _align_inspector_plot_pair(*figures) -> None:
+    """Keep paired plot frames aligned despite different legend row counts."""
+    available = [fig for fig in figures if fig is not None]
+    if len(available) < 2:
+        return
+    top = max(fig.layout.margin.t for fig in available)
+    bottom = max(fig.layout.margin.b for fig in available)
+    height = max(max(fig.layout.height for fig in available), top + bottom + 360)
+    for fig in available:
+        fig.update_layout(
+            height=height, margin=dict(t=top, b=bottom),
+            legend=dict(y=1 + 12 / (height - top - bottom)),
+        )
+
+
+def _build_inspector_download_figure(fig):
+    """Fit the export header to its two-column legend, independently of the pair."""
+    import plotly.graph_objects as go
+
+    download_fig = go.Figure(fig)
+    entries = sum(
+        1 for trace in download_fig.data
+        if trace.name and trace.showlegend is not False and trace.visible is not False
+    ) if download_fig.layout.showlegend is not False else 0
+    rows = (entries + 1) // 2
+    top = 24 + 38 * rows
+    height = max(_INSPECTOR_PLOT_EXPORT_HEIGHT, top + 90 + 360)
+    download_fig.update_layout(
+        width=_INSPECTOR_PLOT_EXPORT_WIDTH, height=height,
+        margin=dict(t=top, b=90),
+        legend=dict(y=1 + 12 / (height - top - 90)),
+    )
+    return download_fig
+
+
+@st.cache_data(show_spinner=False, max_entries=12)
+def _inspector_download_bytes(figure_json: str, image_format: str) -> bytes:
+    """Cache rendered downloads across Inspector reruns."""
+    import plotly.io as pio
+
+    fig = pio.from_json(figure_json)
+    return fig.to_image(format=image_format, scale=3 if image_format == "png" else 1)
+
+
+def _render_inspector_download(fig, config, *, key: str) -> None:
+    """Offer the compact export without adding another chart view."""
+    options = config["toImageButtonOptions"]
+    image_format = options["format"]
+    download_fig = _build_inspector_download_figure(fig)
+    st.download_button(
+        f"Download {image_format.upper()}",
+        data=_inspector_download_bytes(download_fig.to_json(), image_format),
+        file_name=f"{options['filename']}.{image_format}",
+        mime="image/png" if image_format == "png" else "image/svg+xml",
+        key=key,
+        on_click="ignore",
+        help="Export the current plot display settings and cycle window with a compact legend.",
+    )
 
 
 def _navigate_to_sample(state, target_idx: int) -> None:
@@ -913,23 +1002,8 @@ def _render_sample_header(
             pass
 
 
-def _render_intensity_section(
-    sample: Sample,
-    display_config: DisplayConfig,
-    selected_isotope: Optional[str] = None,
-    selected_ratio: Optional[str] = None,
-    cycle_range: tuple = None,
-) -> None:
-    """Render intensity plots section."""
-    st.subheader("Intensity")
-
-    if not sample.intensities:
-        st.caption("No intensity data available.")
-        return
-
-    if selected_isotope is None:
-        selected_isotope = list(sample.intensities.keys())[0]
-
+def _build_inspector_intensity_figure(sample, display_config, selected_isotope, selected_ratio, cycle_range):
+    """Prepare the intensity figure before paired layout is resolved."""
     plot_height = min(int(get_state().plot_config.get("height", 650)), 550)
 
     # Single isotope plot (larger, focused) with cycle range
@@ -947,7 +1021,35 @@ def _render_intensity_section(
         selected_ratio=selected_ratio,
     )
     _hide_plot_grids(fig)
-    _apply_inspector_plot_sizing(fig)
+    _apply_inspector_plot_sizing(fig, external_title=True)
+    return fig
+
+
+def _render_intensity_section(
+    sample: Sample,
+    display_config: DisplayConfig,
+    selected_isotope: Optional[str] = None,
+    selected_ratio: Optional[str] = None,
+    cycle_range: tuple = None,
+    *,
+    prepared_figure=None,
+) -> None:
+    """Render intensity plots section."""
+
+    if not sample.intensities:
+        st.caption("No intensity data available.")
+        return
+
+    if selected_isotope is None:
+        selected_isotope = list(sample.intensities.keys())[0]
+    st.subheader(f"Intensity — {format_ratio_label(selected_isotope)}")
+
+    fig = prepared_figure
+    if fig is None:
+        fig = _build_inspector_intensity_figure(
+            sample, display_config, selected_isotope, selected_ratio, cycle_range,
+        )
+    plot_height = int(fig.layout.height)
     isotope_slug = selected_isotope.replace("/", "_")
     sample_slug = sample.name.replace("/", "_").replace("\\", "_")
     intensity_plot_config = get_plotly_config(
@@ -963,26 +1065,13 @@ def _render_intensity_section(
         key=f"inspector_intensity_main_{selected_isotope}",
         config=intensity_plot_config,
     )
+    _render_inspector_download(
+        fig, intensity_plot_config, key=f"inspector_intensity_download_{selected_isotope}",
+    )
 
 
-def _render_ratio_section(
-    sample: Sample,
-    display_config: DisplayConfig,
-    selected_ratio: Optional[str] = None,
-    cycle_range: tuple = None,
-    *,
-    manual_exclusion_mode: bool = False,
-) -> None:
-    """Render ratio plots section."""
-    st.subheader("Ratio")
-
-    if not sample.ratios:
-        st.caption("No ratio data available.")
-        return
-
-    if selected_ratio is None:
-        selected_ratio = list(sample.ratios.keys())[0]
-
+def _build_inspector_ratio_figure(sample, display_config, selected_ratio, cycle_range):
+    """Prepare ratio traces and staged markers before paired layout is resolved."""
     state = get_state()
     iif_label = _get_iif_like_plot_label(sample, selected_ratio)
 
@@ -1025,7 +1114,36 @@ def _render_ratio_section(
         staged_cycles=staged_cycles,
     )
     _hide_plot_grids(fig)
-    _apply_inspector_plot_sizing(fig)
+    _apply_inspector_plot_sizing(fig, external_title=True)
+    return fig
+
+
+def _render_ratio_section(
+    sample: Sample,
+    display_config: DisplayConfig,
+    selected_ratio: Optional[str] = None,
+    cycle_range: tuple = None,
+    *,
+    manual_exclusion_mode: bool = False,
+    prepared_figure=None,
+) -> None:
+    """Render ratio plots section."""
+
+    if not sample.ratios:
+        st.caption("No ratio data available.")
+        return
+
+    if selected_ratio is None:
+        selected_ratio = list(sample.ratios.keys())[0]
+    st.subheader(f"Ratio — {format_ratio_label(selected_ratio)}")
+
+    state = get_state()
+    sample_key = get_sample_state_key(sample)
+    widget_key = f"excluded_{sample_key}"
+    fig = prepared_figure
+    if fig is None:
+        fig = _build_inspector_ratio_figure(sample, display_config, selected_ratio, cycle_range)
+    plot_height = int(fig.layout.height)
     sync_key = f"{widget_key}__sync"
     reset_key = f"ratio_view_reset_{sample_key}_{selected_ratio}"
     # chart_ver is incremented by Apply/Revert so the chart gets a fresh key
@@ -1081,6 +1199,9 @@ def _render_ratio_section(
             key=chart_key,
             config=ratio_plot_config,
         )
+    _render_inspector_download(
+        fig, ratio_plot_config, key=f"inspector_ratio_download_{sample_key}_{selected_ratio}",
+    )
     if st.button(
         "Reset ratio view",
         key=f"{reset_key}_button",

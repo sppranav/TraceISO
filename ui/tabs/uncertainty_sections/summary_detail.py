@@ -37,7 +37,7 @@ from ui.tabs.uncertainty_sections.equations_mc import (
 from ui.tabs.uncertainty_sections import shared_ui
 from ui.components.table_utils import style_status_column
 from ui.tabs.uncertainty_sections.ui_context import UncertaintyUiContext
-from ui.config_plotly import get_plotly_config, PLOTLY_BASE_FONT_SIZE, PLOTLY_AXIS_TITLE_FONT_SIZE
+from ui.config_plotly import get_plotly_config
 from ui.theme import get_theme
 from ui.utils import (
     format_isotope_label,
@@ -1135,7 +1135,7 @@ def _render_detailed_variance_chart(
 
     max_pct = max(shares)
     left_margin = min(320, max(180, max(len(n) for n in names) * 10))
-    chart_font_size = PLOTLY_BASE_FONT_SIZE + 2
+    chart_font_size = 22
     chart_height = max(360, 84 * len(active))
 
     fig = go.Figure()
@@ -1169,10 +1169,11 @@ def _render_detailed_variance_chart(
         margin=dict(l=left_margin, r=60, t=50, b=70),
         xaxis=dict(
             range=[0, max_pct * 1.3],
-            title_font=dict(size=PLOTLY_AXIS_TITLE_FONT_SIZE + 2),
+            title_font=dict(size=23),
             tickfont=dict(size=chart_font_size),
+            automargin=True,
         ),
-        yaxis=dict(tickfont=dict(size=chart_font_size)),
+        yaxis=dict(tickfont=dict(size=chart_font_size), automargin=True),
         font=dict(size=chart_font_size),
         showlegend=True,
         legend=dict(
