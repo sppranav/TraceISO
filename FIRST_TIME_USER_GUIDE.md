@@ -65,7 +65,7 @@ Choose a normal working location such as Documents. Avoid:
 2. Install **Python 3.10 or newer** if you do not have it
    (https://www.python.org/downloads/). This is the declared minimum; see
    [Python compatibility](README.md#python-compatibility)
-   for dependency-pin limitations and optional desktop-tool requirements.
+   for the tested dependency lock and optional desktop-tool requirements.
 3. Do not move these folders out of the project:
    - `config`
    - `domain`

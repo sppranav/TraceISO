@@ -44,11 +44,13 @@ desktop tools require PyQt5, whose availability may vary by Python version and
 platform.
 
 `requirements.txt` specifies dependency ranges for normal installation.
-`requirements-lock.txt` contains exact pins for the listed application
-dependencies, but a successful release test run using those pins has not been
-established. It is not a fully resolved environment lock: transitive dependencies
-and optional desktop packages are not pinned there. Do not treat it as a
-verified release environment.
+`requirements-lock.txt` pins every package, including transitive dependencies,
+of the environment in which the TraceISO test suite passed (Windows 11,
+Python 3.12.10, November 2026). Install it with
+`python -m pip install -r requirements-lock.txt` to reproduce that tested
+environment. Other operating systems or Python versions may need different
+builds; use `requirements.txt` there. The optional PyQt desktop tools are not
+included in the lock.
 
 ### Recommended launch method
 

@@ -287,7 +287,9 @@ def parse_time_column(
         )
 
     first_valid = parsed.dropna().iloc[0]
-    seconds = (parsed - first_valid).dt.total_seconds().to_numpy()
+    # copy=True: under pandas 3 copy-on-write, to_numpy() may return a
+    # read-only view, and the midnight rollover below edits it in place.
+    seconds = (parsed - first_valid).dt.total_seconds().to_numpy(dtype=float, copy=True)
     # A clock carries no date, so a run that crosses midnight steps back by
     # almost a day. Cycles are minutes apart at most; a backwards step of more
     # than half a day is therefore read as the next day, never as time travel.
